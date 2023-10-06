@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "hate-speech-detection"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+torchmetrics = "^1.2.0"
+tqdm = "^4.66.1"
+transformers = "^4.34.0"
+polars = "^0.19.6"
+pyarrow = "^13.0.0"
+lightning = "^2.0.9.post0"
+torch = "2.0.0"
+cython = "^3.0.2"
+
+
+[tool.poetry.group.dev.dependencies]
+pylama = "^8.4.1"
+black = "^23.9.1"
+isort = "^5.12.0"
+ipykernel = "^6.25.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
