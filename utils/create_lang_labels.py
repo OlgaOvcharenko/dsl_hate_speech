@@ -8,6 +8,6 @@ def detect_language(df: pd.DataFrame, comments_col: str = "kommentar", lang_col:
     return pd.concat([df, pd.get_dummies([detect(str(val)) if isinstance(val, str)  and val.isalpha() else str(val) for val in  df[comments_col]])], axis=1)
 
 
-df = read_data_to_df("data/data_half_slice_2col.csv")
+df = read_data_to_df("data/all_DEFR_comments_27062022.csv")
 df = detect_language(df)
 df.to_csv("data/all_comments_lang.csv", index=False)
