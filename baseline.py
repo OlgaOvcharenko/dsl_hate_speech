@@ -16,6 +16,17 @@ np.random.seed(SEED)
 torch.manual_seed(SEED)
 torch.cuda.manual_seed_all(SEED)
 
+MODEL = "Hate-speech-CNERG/dehatebert-mono-german"
+TOKENIZER = "Hate-speech-CNERG/dehatebert-mono-german"
+
+def save_model_local():
+    AutoModelForSequenceClassification.from_pretrained(
+            MODEL, num_labels=2, local_files_only=True
+        ).save_pretrained(f"models_local/{MODEL}_model")
+    AutoTokenizer.from_pretrained(
+        TOKENIZER
+    ).save_pretrained(f"models_local/{MODEL}_tokenizer")
+
 # %%
 class CommentDataset(torch.utils.data.Dataset):
     def __init__(self, data: pr.DataFrame):
@@ -65,7 +76,7 @@ class BERTModule(torch.nn.Module):
     def __init__(self):
         super().__init__()
         self.model = AutoModelForSequenceClassification.from_pretrained(
-            "Hate-speech-CNERG/dehatebert-mono-german", num_labels=2
+            MODEL, num_labels=2, local_files_only=True
         )
 
         freeze_sublayers = [
@@ -97,7 +108,7 @@ def train_loop(model: torch.nn.Module, epochs: int, train_loader: torch.utils.da
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     tokenizer = AutoTokenizer.from_pretrained(
-        "Hate-speech-CNERG/dehatebert-mono-german"
+        TOKENIZER
     )
 
     for i in range(epochs):

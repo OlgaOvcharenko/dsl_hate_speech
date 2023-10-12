@@ -166,3 +166,6 @@ wandb/*
 data/
 
 python_venv/
+
+models_local/
+copy_model.sh

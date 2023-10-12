@@ -6,8 +6,11 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --time=02:00:00
 
+HF_DATASETS_OFFLINE=1 
+TRANSFORMERS_OFFLINE=1
+
 mkdir -p logs
-mkdir -p models
+mkdir -p models_saved
 
 module load python3.11.*
 
