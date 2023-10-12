@@ -111,6 +111,8 @@ def train_loop(model: torch.nn.Module, epochs: int, train_loader: torch.utils.da
         TOKENIZER
     )
 
+    model.to(device)
+
     for i in range(epochs):
         model.train()
         losses = 0
@@ -126,7 +128,7 @@ def train_loop(model: torch.nn.Module, epochs: int, train_loader: torch.utils.da
             if torch.cuda.is_available():
                 batch_X = batch_X.cuda()
                 batch_Y = batch_Y.cuda()
-                
+
             batch_X.cuda() if torch.cuda.is_available() else batch_X
             outputs = model(batch_X)
 
