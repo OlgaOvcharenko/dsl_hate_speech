@@ -15,4 +15,4 @@ nvidia-smi
 
 source "python_venv/bin/activate"
 
-python baseline_test.py
+python test_baseline.py
