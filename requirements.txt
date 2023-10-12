@@ -23,7 +23,6 @@ pytz
 PyYAML
 regex
 requests
-safetensors
 six
 sympy
 tokenizers
