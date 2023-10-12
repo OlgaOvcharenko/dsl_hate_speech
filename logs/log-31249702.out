@@ -1,0 +1,2 @@
+slurmstepd: error: poll(): Bad address
+/var/spool/slurm/slurmd/state/job31249702/slurm_script: line 15: 33359 Killed                  python3 utils/create_lang_labels.py

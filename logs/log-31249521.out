@@ -1,0 +1,2 @@
+/var/spool/slurm/slurmd/state/job31249521/slurm_script: line 14: 83981 Killed                  python3 utils/create_lang_labels.py
+slurmstepd: error: Detected 1 oom_kill event in StepId=31249521.batch. Some of the step tasks have been OOM Killed.
