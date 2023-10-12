@@ -112,6 +112,7 @@ def train_loop(model: torch.nn.Module, epochs: int, train_loader: torch.utils.da
     )
 
     model.to(device)
+    tokenizer.to(device)
 
     for i in range(epochs):
         model.train()
