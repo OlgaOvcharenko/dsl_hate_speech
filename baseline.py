@@ -117,12 +117,17 @@ def train_loop(model: torch.nn.Module, epochs: int, train_loader: torch.utils.da
         print(f"Epoch {i}:")
         for batch_X, batch_Y in tqdm.tqdm(train_loader):
             batch_X = tokenizer.batch_encode_plus(
-                batch_X, padding=True, truncation=True, return_tensors="pt"
+                list(batch_X), padding=True, truncation=True, return_tensors="pt"
             )["input_ids"]
 
             batch_X, batch_Y = batch_X.to(device), batch_Y.to(device)
             
             optimizer.zero_grad()
+            if torch.cuda.is_available():
+                batch_X = batch_X.cuda()
+                batch_Y = batch_Y.cuda()
+                
+            batch_X.cuda() if torch.cuda.is_available() else batch_X
             outputs = model(batch_X)
 
             logits = outputs.logits.squeeze()

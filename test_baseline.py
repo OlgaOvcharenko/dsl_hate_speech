@@ -1,6 +1,6 @@
 from baseline import *
 
-data = setup_data(debug_subset=100)
+data = setup_data()
 train_dataset, val_dataset, test_dataset = setup_datasets(data)
 
 train_dataloader = setup_dataloader(train_dataset, shuffle=True)
