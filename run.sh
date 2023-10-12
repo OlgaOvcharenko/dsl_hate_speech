@@ -10,6 +10,7 @@ mkdir -p logs
 mkdir -p models
 
 module load python3.11.*
+module load poetry
 
 nvidia-smi
 
