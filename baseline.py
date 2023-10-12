@@ -45,8 +45,12 @@ def setup_data(debug_subset: Optional[int] = None):
     return data
 
 def setup_datasets(data: pr.DataFrame, test_split: float = 0.2, val_split: float = 0.2):
+    full_size = data.shape[0]
+    train_size = int((1 - test_split - val_split) * full_size)
+    val_size = int((full_size - train_size) * val_split)
+    test_size = full_size - train_size - val_size
     train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(
-        CommentDataset(data), [1 - test_split - val_split, val_split, test_split]
+        CommentDataset(data), [train_size, val_size, test_size]
     )
     return train_dataset, val_dataset, test_dataset
 

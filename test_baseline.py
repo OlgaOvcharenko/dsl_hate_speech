@@ -10,4 +10,4 @@ test_dataloader = setup_dataloader(test_dataset, shuffle=False)
 model = BERTModule()
 
 train_loop(model=model, epochs=1, train_loader=train_dataloader, val_loader=val_dataloader, verbose = True)
-torch.save(model, f"models/run1.pt")
+torch.save(model, "models/run1.pt")
