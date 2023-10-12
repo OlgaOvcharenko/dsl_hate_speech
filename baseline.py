@@ -1,102 +1,69 @@
-# %%
+import os
+import random
+from typing import Callable, Optional
+
+import numpy as np
 import polars as pr
 import pytorch_lightning as pl
 import torch
+import tqdm
 from lightning.pytorch.loggers import WandbLogger
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 # %%
-pl.seed_everything(42)
-
+SEED = 42
+os.environ["PL_GLOBAL_SEED"] = str(SEED)
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+torch.cuda.manual_seed_all(SEED)
 
 # %%
 class CommentDataset(torch.utils.data.Dataset):
-    def __init__(self, data):
+    def __init__(self, data: pr.DataFrame):
         self.data = data
 
     def __len__(self):
-        return len(self.data["input_ids"])
+        return len(self.data["kommentar"])
 
     def __getitem__(self, index):
-        return {
-            "input_ids": self.data["input_ids"][index],
-            "label": self.data["label"][index],
-            "attention_mask": self.data["attention_mask"][index],
-        }
-
-
-class CommentDataModule(pl.LightningDataModule):
-    def __init__(
-        self,
-        data_path: str = "./data/all_DEFR_comments_27062022.csv",
-        train_batch_size=16,
-        eval_batch_size=16,
-        test_size=1000,
-        debug_subset=None,
-    ):
-        super().__init__()
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            "Hate-speech-CNERG/dehatebert-mono-german"
+        return (
+            self.data["kommentar"][index], 
+            torch.tensor(self.data["label"][index], dtype=torch.float32)
         )
-        self.data_path = data_path
-        self.debug_subset = debug_subset
+    
+def setup_data(debug_subset: Optional[int] = None):
+    data_path = "./data/all_DEFR_comments_27062022.csv"
 
-        self.train_batch_size = train_batch_size
-        self.eval_batch_size = eval_batch_size
+    df = pr.read_csv(data_path, dtypes={"ArticleID": pr.Utf8, "ID": pr.Utf8})
+    
+    # TODO: Ask about the NULL values
+    # TODO: Ask about the duplicates and remove them properly .unique(subset=["kommentar"])
+    df = df.drop_nulls()
+    if debug_subset is not None:
+        df = df.head(debug_subset)
 
-        self.test_size = test_size
+    data = df.select(["kommentar", "label"])
+    return data
 
-    def prepare_data(self):
-        df = pr.read_csv(self.data_path, dtypes={"ArticleID": pr.Utf8, "ID": pr.Utf8})
-        # TODO: Ask about the NULL values
-        # TODO: Ask about the duplicates and remove them properly
-        df = df.drop_nulls().unique(subset=["kommentar"])
-        if self.debug_subset is not None:
-            df = df.head(self.debug_subset)
+def setup_datasets(data: pr.DataFrame, test_split: float = 0.2, val_split: float = 0.2):
+    train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(
+        CommentDataset(data), [1 - test_split - val_split, val_split, test_split]
+    )
+    return train_dataset, val_dataset, test_dataset
 
-        self.data = self.tokenizer.batch_encode_plus(
-            df["kommentar"].to_list(),
-            padding=True,
-            truncation=True,
-            return_tensors="pt",
-        )
-        self.data["label"] = torch.tensor(df["label"])
-
-    def setup(self, stage):
-        dataset = CommentDataset(self.data)
-
-        j = self.test_size
-        data, test_data = dataset[:-j], dataset[-j:]
-
-        self.test_dataset = CommentDataset(test_data)
-        self.train_dataset, self.val_dataset = torch.utils.data.random_split(
-            CommentDataset(data), [0.8, 0.2]
-        )
-
-    def train_dataloader(self):
-        return torch.utils.data.DataLoader(
-            self.train_dataset, batch_size=self.train_batch_size, shuffle=True
-        )
-
-    def val_dataloader(self):
-        return torch.utils.data.DataLoader(
-            self.val_dataset, batch_size=self.eval_batch_size
-        )
-
-    def test_dataloader(self):
-        return torch.utils.data.DataLoader(
-            self.test_dataset, batch_size=self.eval_batch_size
-        )
+def setup_dataloader(data: torch.utils.data.Dataset, shuffle: bool, batch_size: int = 16):
+    return torch.utils.data.DataLoader(
+        data, batch_size=batch_size, shuffle=shuffle
+    )
 
 
 # %%
-class BERTModule(pl.LightningModule):
-    def __init__(self, lr=3e-4):
+class BERTModule(torch.nn.Module):
+    def __init__(self):
         super().__init__()
-        self.optimizer_class = torch.optim.SGD
-        self.lr = lr
         self.model = AutoModelForSequenceClassification.from_pretrained(
-            "statworx/bert-base-german-cased-finetuned-swiss", num_labels=1
+            "Hate-speech-CNERG/dehatebert-mono-german", num_labels=2
         )
 
         freeze_sublayers = [
@@ -117,70 +84,77 @@ class BERTModule(pl.LightningModule):
                 if freeze_layer in name:
                     param.requires_grad = False
 
-    def configure_optimizers(self):
-        return self.optimizer_class(self.parameters(), lr=self.lr)
-
-        # scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        #     optimizer=optimizer,
-        #     max_lr=self.one_cycle_max_lr,
-        #     total_steps=self.one_cycle_total_steps,
-        # )
-
-        # return {
-        #     "optimizer": optimizer,
-        #     # "lr_scheduler": scheduler,
-        #     "monitor": "validation/loss",
-        # }
-
     def forward(self, x):
         return self.model(x)
 
-    def predict(self, x):
-        logits = self.model(x)
-        return torch.argmax(logits, dim=1)
 
-    def _run_on_batch(self, batch, with_preds=False):
-        x, y = batch["input_ids"], batch["label"]
-        logits = self(x)
-        loss = torch.nn.functional.binary_cross_entropy_with_logits(logits, y)
-        acc = torch.sum(torch.round(torch.sigmoid(logits)) == y).float() / len(y)
-        return loss, acc
+def train_loop(model: torch.nn.Module, epochs: int, train_loader: torch.utils.data.DataLoader, val_loader: torch.utils.data.DataLoader, verbose: bool = False):
+    loss_fn = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-4, momentum=0.9, weight_decay=1e-5)
 
-    def training_step(self, batch, batch_idx):
-        loss, acc = self._run_on_batch(batch)
-        self.log("train/loss", loss)
-        self.log("train/acc", acc, on_step=False, on_epoch=True)
-        return {"loss": loss}
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    def validation_step(self, batch, batch_idx):
-        loss, acc = self._run_on_batch(batch)
-        self.log("validation/loss", loss, prog_bar=True, sync_dist=True)
-        self.log("validation/acc", acc, on_step=False, on_epoch=True, prog_bar=True)
-        return {"loss": loss}
+    tokenizer = AutoTokenizer.from_pretrained(
+        "Hate-speech-CNERG/dehatebert-mono-german"
+    )
 
-    def test_step(self, batch, batch_idx):
-        loss, acc = self._run_on_batch(batch)
-        self.log("test/loss", loss, on_step=False, on_epoch=True)
-        self.log("test/acc", acc, on_step=False, on_epoch=True)
+    for i in range(epochs):
+        model.train()
+        losses = 0
+        print(f"Epoch {i}:")
+        for batch_X, batch_Y in tqdm.tqdm(train_loader):
+            batch_X = tokenizer.batch_encode_plus(
+                batch_X, padding=True, truncation=True, return_tensors="pt"
+            )["input_ids"]
 
+            batch_X, batch_Y = batch_X.to(device), batch_Y.to(device)
+            
+            optimizer.zero_grad()
+            outputs = model(batch_X)
 
-# %%
-dm = CommentDataModule(debug_subset=1000, test_size=100)
-dm.prepare_data()
-dm.setup(None)
+            logits = outputs.logits.squeeze()
+            batch_Y = torch.squeeze(batch_Y).long()
+            loss = loss_fn(logits, batch_Y)
 
-trainer = pl.Trainer(
-    max_epochs=1,
-    accelerator="cpu",
-    logger=WandbLogger(project="hatespeech", log_model=True),
-)
+            loss.backward()
+            optimizer.step()
 
-# %%
-model = BERTModule()
-model.to("cpu")
+            losses += loss.item()
+        
+        if verbose:
+            print(f"Train loss after {epochs: 04d} epochs: {losses/((i+1)*len(train_loader)): 0.4f}")
+        
+        if i % 10 == 0:
+            validation(model, tokenizer, loss_fn, val_loader, epochs, device)
 
+def validation(model: torch.nn.Module, tokenizer, loss_fn: Callable, val_dataloader: torch.utils.data.DataLoader, epochs: int, device: str = "cpu"):
+    with torch.inference_mode():   
+        model.eval()
+        
+        val_loss = 0
+        targets, outs = [], []
+        print("Validation:")
+        for valid_X, valid_Y in tqdm.tqdm(val_dataloader):
+            valid_X = tokenizer.batch_encode_plus(
+                valid_X, padding=True, truncation=True, return_tensors="pt"
+            )["input_ids"]
+            valid_X, valid_Y = valid_X.to(device), valid_Y.to(device)
 
-# %%
-trainer.fit(model, datamodule=dm)
+            outputs = model(valid_X)
+            logits = outputs.logits
+            logits = torch.squeeze(logits)
+            #logits = torch.argmax(logits, dim=1)
+            
+            #outs.extend(logits > 0)
+            outs.extend([logits > 0])
+            #logits = torch.squeeze(logits)
 
-# %%
+            targets.extend(valid_Y)
+            valid_Y = valid_Y.unsqueeze(0)
+            valid_Y = valid_Y[0, :]
+            valid_Y = torch.squeeze(valid_Y).long()
+            val_loss += loss_fn(logits, valid_Y).item()
+        val_loss = val_loss / len(val_dataloader)
+        # scheduler.step(val_loss)
+        print(f"  Val loss after {epochs: 04d} epochs: {val_loss: 0.4f}")
+
