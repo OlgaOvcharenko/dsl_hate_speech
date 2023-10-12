@@ -16,8 +16,8 @@ np.random.seed(SEED)
 torch.manual_seed(SEED)
 torch.cuda.manual_seed_all(SEED)
 
-MODEL = "Hate-speech-CNERG/dehatebert-mono-german" + "_model"
-TOKENIZER = "Hate-speech-CNERG/dehatebert-mono-german" + "_tokenizer"
+MODEL = "models_local/" + "Hate-speech-CNERG/dehatebert-mono-german" + "_model"
+TOKENIZER = "models_local/" + "Hate-speech-CNERG/dehatebert-mono-german" + "_tokenizer"
 
 def save_model_local():
     AutoModelForSequenceClassification.from_pretrained(
