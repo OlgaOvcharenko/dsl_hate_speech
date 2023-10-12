@@ -9,7 +9,7 @@
 mkdir -p logs
 mkdir -p models
 
-module load python
+module load python3.11.*
 
 nvidia-smi
 
