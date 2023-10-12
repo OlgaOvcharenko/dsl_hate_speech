@@ -10,8 +10,6 @@ fsspec
 huggingface-hub
 idna
 Jinja2
-lightning
-lightning-utilities
 MarkupSafe
 mpmath
 multidict
@@ -21,7 +19,6 @@ packaging
 pandas
 polars
 python-dateutil
-pytorch-lightning
 pytz
 PyYAML
 regex
