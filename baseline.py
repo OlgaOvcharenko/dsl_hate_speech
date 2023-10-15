@@ -157,7 +157,7 @@ def validation(model: torch.nn.Module, tokenizer, loss_fn: Callable, val_dataloa
         print("Validation:")
         for valid_X, valid_Y in tqdm.tqdm(val_dataloader):
             valid_X = tokenizer.batch_encode_plus(
-                valid_X, padding=True, truncation=True, return_tensors="pt"
+                list(valid_X), padding=True, truncation=True, return_tensors="pt"
             )["input_ids"]
             valid_X, valid_Y = valid_X.to(device), valid_Y.to(device)
 
