@@ -17,5 +17,5 @@ module load python3.11.*
 nvidia-smi
 
 source "python_venv/bin/activate"
-pip install --force-reinstall torch==1.10.2+cu113 --extra-index-url https://download.pytorch.org/whl/
+pip install --force-reinstall torch==1.10.*+cu113 --extra-index-url https://download.pytorch.org/whl/
 python test_baseline.py
