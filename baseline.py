@@ -112,7 +112,7 @@ def train_loop(model: torch.nn.Module, epochs: int, train_loader: torch.utils.da
     )
 
     model.to(device)
-    tokenizer.to(device)
+    # tokenizer.to(device)
 
     for i in range(epochs):
         model.train()
@@ -121,7 +121,7 @@ def train_loop(model: torch.nn.Module, epochs: int, train_loader: torch.utils.da
         for batch_X, batch_Y in tqdm.tqdm(train_loader):
             batch_X = tokenizer.batch_encode_plus(
                 list(batch_X), padding=True, truncation=True, return_tensors="pt"
-            )["input_ids"]
+            )["input_ids"].to(device)
 
             batch_X, batch_Y = batch_X.to(device), batch_Y.to(device)
             
