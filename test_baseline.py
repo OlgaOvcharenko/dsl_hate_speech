@@ -1,17 +1,36 @@
+import wandb
 from baseline import *
-import torch
 
-data = setup_data()
+wandb.init(
+    project="toxicity-detection-baseline",
+    config={
+        "optimizer": "SGD",
+        "learning_rate": 1e-4,
+        "momentum": 0.9,
+        "weight_decay": 1e-5,
+        "data_path": "./data/all_DEFR_comments_27062022.csv",
+        "model_id": "Hate-speech-CNERG/dehatebert-mono-german",
+        "epochs": 3,
+        "batch_size": 16,
+        "debug_subset": 50,
+    },
+)
+config = wandb.config
+
+
+data = setup_data(config.data_path, debug_subset=config.debug_subset)
 train_dataset, val_dataset, test_dataset = setup_datasets(data)
+train_loader = setup_loader(train_dataset, shuffle=True, batch_size=config.batch_size)
+val_loader = setup_loader(val_dataset, shuffle=False, batch_size=config.batch_size)
+test_loader = setup_loader(test_dataset, shuffle=False, batch_size=1)
 
-train_dataloader = setup_dataloader(train_dataset, shuffle=True)
-val_dataloader = setup_dataloader(val_dataset, shuffle=False)
-test_dataloader = setup_dataloader(test_dataset, shuffle=False, batch_size=1)
+model = PretrainedModule(config)
 
-model = BERTModule()
+train(
+    model=model,
+    config=config,
+    train_loader=train_loader,
+    val_loader=val_loader,
+)
 
-epochs = 10
-model, tokenizer = train_loop(model=model, epochs=epochs, train_loader=train_dataloader, val_loader=val_dataloader, verbose=True)
-torch.save(model, f"models_saved/run_1_{epochs}.pt")
-
-test(model, tokenizer, test_dataloader)
+test(model=model, config=config, loader=test_loader)
