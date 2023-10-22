@@ -5,7 +5,14 @@ import numpy as np
 import torch
 
 import wandb
-from baseline import *
+from baseline import (
+    PretrainedModule,
+    setup_data,
+    setup_datasets,
+    setup_loader,
+    test,
+    train,
+)
 
 wandb.init(
     project="toxicity-detection-baseline",
