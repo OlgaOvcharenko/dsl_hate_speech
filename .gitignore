@@ -160,6 +160,7 @@ cython_debug/
 #.idea/
 
 wandb/*
+logs/*
 
 .DS_Store
 
