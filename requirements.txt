@@ -2,13 +2,16 @@ aiohttp
 aiosignal
 async-timeout
 attrs
+black
 certifi
-charset-normalizer
 filelock
 frozenlist
 fsspec
 huggingface-hub
+charset-normalizer
 idna
+ipykernel
+isort
 Jinja2
 MarkupSafe
 mpmath
@@ -18,6 +21,7 @@ numpy
 packaging
 pandas
 polars
+pylama
 python-dateutil
 pytz
 PyYAML
