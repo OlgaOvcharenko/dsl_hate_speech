@@ -31,6 +31,7 @@ wandb.init(
         "debug_subset": None,
         "checkpoint_every_n": 2,
         "log_n_worst": 100,
+        "log_model_to_wandb": False,
     },
 )
 config = wandb.config
