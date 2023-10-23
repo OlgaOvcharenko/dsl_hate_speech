@@ -1,11 +1,12 @@
-import os
 from pathlib import Path
 from typing import Callable, Optional
 
 import polars as pr
 import torch
 import torchmetrics
-from torch.utils.data import DataLoader, Dataset, random_split
+import wandb.plot
+from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 import wandb
@@ -56,13 +57,25 @@ def setup_datasets(
     test_split: float = 0.2,
     val_split: float = 0.2,
 ):
-    full_size = comments.shape[0]
-    train_size = int((1 - test_split - val_split) * full_size)
-    val_size = int((full_size - train_size) * val_split)
-    test_size = full_size - train_size - val_size
-    train_dataset, val_dataset, test_dataset = random_split(
-        CommentDataset(comments, labels), [train_size, val_size, test_size]
+    train_data, test_data, train_labels, test_labels = train_test_split(
+        comments.numpy(),
+        labels.numpy(),
+        test_size=test_split,
+        shuffle=True,
+        stratify=labels.numpy(),
     )
+    train_data, val_data, train_labels, val_labels = train_test_split(
+        train_data,
+        train_labels,
+        test_size=val_split,
+        shuffle=True,
+        stratify=train_labels,
+    )
+
+    train_dataset = CommentDataset(torch.tensor(train_data), torch.tensor(train_labels))
+    val_dataset = CommentDataset(torch.tensor(val_data), torch.tensor(val_labels))
+    test_dataset = CommentDataset(torch.tensor(test_data), torch.tensor(test_labels))
+
     return train_dataset, val_dataset, test_dataset
 
 
@@ -102,7 +115,6 @@ def train(
     val_loader: DataLoader,
 ):
     loss_fn = torch.nn.CrossEntropyLoss()
-    f1_fn = torchmetrics.F1Score(task="multiclass", num_classes=2, average="macro")
     assert wandb.run is not None
     wandb.watch(model, loss_fn, log="all", log_freq=100)
 
@@ -154,11 +166,10 @@ def train(
                 wandb.log({"train/loss": train_loss}, step=example_ct)
 
         train_accuracy = correct_ct / len(train_loader.dataset)  # type: ignore
-        val_loss, val_accuracy, val_f1 = _evaluate(
+        val_loss, logits, labels = _evaluate(
             model,
             comments_text,
             loss_fn,
-            f1_fn,
             val_loader,
             log_examples=(epoch % config.checkpoint_every_n == 0),
             log_n_worst=config.log_n_worst,
@@ -187,11 +198,29 @@ def train(
                 checkpoint_path / f"{config.model_name}_epoch={epoch}.ckpt",
             )
 
+        (
+            f1,
+            auprc,
+            val_accuracy,
+            precision_0,
+            precision_1,
+            recall_0,
+            recall_1,
+        ) = compute_metrics(logits, labels)
+
         wandb.log(
             {
                 "validation/loss": val_loss,
                 "validation/accuracy": val_accuracy,
-                "validation/f1": val_f1,
+                "validation/f1": f1,
+                "validation/auprc": auprc,
+                "validation/precision_non-toxic": precision_0,
+                "validation/precision_toxic": precision_1,
+                "validation/recall_non-toxic": recall_0,
+                "validation/recall_toxic": recall_1,
+                "validation/pr_curve": wandb.plot.pr_curve(
+                    labels, torch.softmax(logits, dim=1)
+                ),
                 "train/accuracy": train_accuracy,
                 "epoch": epoch,
             },
@@ -205,20 +234,20 @@ def train(
 
     torch.save(model_latest, checkpoint_path / f"{config.model_name}_latest.ckpt")
     torch.save(model_best, checkpoint_path / f"{config.model_name}_best.ckpt")
-    model_artifact = wandb.Artifact(
-        "toxicity-baseline",
-        type="model",
-        metadata=dict(config),
-    )
-    model_artifact.add_file(checkpoint_path / f"{config.model_name}_best.ckpt")
-    wandb.log_artifact(model_artifact, aliases=["best", "latest"])
+    if config.log_model_to_wandb:
+        model_artifact = wandb.Artifact(
+            "toxicity-baseline",
+            type="model",
+            metadata=dict(config),
+        )
+        model_artifact.add_file(checkpoint_path / f"{config.model_name}_best.ckpt")
+        wandb.log_artifact(model_artifact, aliases=["best", "latest"])
 
 
 def _evaluate(
     model: torch.nn.Module,
     comments_text,
     loss_fn: Callable,
-    f1_fn: Callable,
     loader: DataLoader,
     log_examples: bool,
     log_n_worst: int,
@@ -227,7 +256,6 @@ def _evaluate(
     model.eval()
     with torch.inference_mode():
         loss = 0
-        correct_ct = 0
         comments_batched, logits_batched, labels_batched = [], [], []
 
         for idx, comments, labels in loader:
@@ -237,7 +265,6 @@ def _evaluate(
             logits = outputs.logits
 
             loss += loss_fn(logits, labels).item() * labels.size(0)
-            correct_ct += (torch.argmax(logits, dim=1) == labels).sum().item()
 
             if log_examples:
                 comments_batched.append(comments_text[idx.tolist()])
@@ -259,9 +286,8 @@ def _evaluate(
                 logits.softmax(dim=1),
             )
 
-        f1 = f1_fn(logits, labels)
-
-        return loss / len(loader.dataset), correct_ct / len(loader.dataset), f1  # type: ignore
+        total = len(loader.dataset)  # type: ignore
+        return loss / total, logits, labels
 
 
 def log_sample_predictions(comments, predictions, true_labels, probabilities):
@@ -278,18 +304,52 @@ def log_sample_predictions(comments, predictions, true_labels, probabilities):
     wandb.log({"predictions_table": table}, commit=False)
 
 
+def compute_metrics(logits, labels):
+    f1 = torchmetrics.F1Score(task="multiclass", num_classes=2, average="macro")(
+        logits, labels
+    )
+    auprc = torchmetrics.AveragePrecision(task="multiclass", num_classes=2)(
+        logits, labels
+    ).item()
+    accuracy = torchmetrics.Accuracy(task="multiclass", num_classes=2)(
+        logits, labels
+    ).item()
+    precision_0, precision_1 = torchmetrics.Precision(
+        task="multiclass", num_classes=2, average="none"
+    )(logits, labels)
+    recall_0, recall_1 = torchmetrics.Recall(
+        task="multiclass", num_classes=2, average="none"
+    )(logits, labels)
+
+    return f1, auprc, accuracy, precision_0, precision_1, recall_0, recall_1
+
+
 def test(
     model: torch.nn.Module, comments_text, config: wandb.Config, loader: DataLoader
 ):
     loss_fn = torch.nn.CrossEntropyLoss()
-    f1_fn = torchmetrics.F1Score(task="multiclass", num_classes=2, average="macro")
-    loss, accuracy, f1 = _evaluate(
+    loss, logits, labels = _evaluate(
         model,
         comments_text,
         loss_fn,
-        f1_fn,
         loader,
         log_examples=True,
         log_n_worst=config.log_n_worst,
     )
-    wandb.summary.update({"test/loss": loss, "test/accuracy": accuracy, "test/f1": f1})
+
+    f1, auprc, accuracy, precision_0, precision_1, recall_0, recall_1 = compute_metrics(
+        logits, labels
+    )
+
+    wandb.summary.update(
+        {
+            "test/loss": loss,
+            "test/accuracy": accuracy,
+            "test/f1": f1,
+            "test/auprc": auprc,
+            "test/precision_non-toxic": precision_0,
+            "test/precision_toxic": precision_1,
+            "test/recall_non-toxic": recall_0,
+            "test/recall_toxic": recall_1,
+        }
+    )
