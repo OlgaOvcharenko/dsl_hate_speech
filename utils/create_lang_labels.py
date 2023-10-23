@@ -5,9 +5,6 @@ def read_data_to_df(path: str) -> pd.DataFrame:
     return pd.read_csv(path)
 
 def detect_language(df: pd.DataFrame, comments_col: str = "kommentar_original", lang_col: str = "lang") -> pd.DataFrame:
-    # return pd.concat([df, pd.get_dummies([detect(str(val)) if isinstance(val, str)  and val.isalpha() else str(val) for val in  df[comments_col]])], axis=1)
-    # return [detect(str(val)) if isinstance(val, str) and val.isalpha() else str('de') for val in  df[comments_col]]
-    # return [detect(str(val)) if str(val) else 't' for val in  df[comments_col]]
     langs = []
     for val in  df[comments_col]:
         try:
