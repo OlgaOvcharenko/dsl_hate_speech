@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -18,39 +19,49 @@ def save_model_local(model_id, model_path, tokenizer_path, num_labels=2):
 
 
 class CommentDataset(Dataset):
-    def __init__(self, data: pr.DataFrame):
-        self.data = data
+    def __init__(self, comments: torch.Tensor, labels: torch.Tensor):
+        self.comments = comments
+        self.labels = labels
 
     def __len__(self):
-        return len(self.data["kommentar"])
+        return len(self.comments)
 
     def __getitem__(self, index):
-        return (
-            self.data["kommentar"][index],
-            torch.tensor(self.data["label"][index], dtype=torch.float32),
-        )
+        return (index, self.comments[index], self.labels[index])
 
 
-def setup_data(data_path: str, debug_subset: Optional[int] = None):
-    df = pr.read_csv(data_path, dtypes={"ArticleID": pr.Utf8, "ID": pr.Utf8})
-
-    # TODO: Ask about the NULL values
-    # TODO: Ask about the duplicates and remove them properly .unique(subset=["kommentar"])
-    df = df.drop_nulls()
+def setup_data(config: wandb.Config, debug_subset: Optional[int] = None):
+    df = pr.read_csv(config.data_path)
     if debug_subset is not None:
         df = df.head(debug_subset)
 
-    data = df.select(["kommentar", "label"])
-    return data
+    name = Path(config.data_path).stem
+    tokenized_path = Path("data") / f"{name}_tokenized.pt"
+    if tokenized_path.exists():
+        tokenized_comments = torch.load(tokenized_path)
+    else:
+        tokenizer = get_tokenizer(config.model_dir, config.base_model_id)
+        tokenized_comments = tokenizer(
+            df["comment"].to_list(), padding=True, truncation=True, return_tensors="pt"
+        )["input_ids"]
+        torch.save(tokenized_comments, tokenized_path)
+
+    labels = torch.from_numpy(df["toxic"].to_numpy())
+    return df["comment"], tokenized_comments, labels
 
 
-def setup_datasets(data: pr.DataFrame, test_split: float = 0.2, val_split: float = 0.2):
-    full_size = data.shape[0]
+def setup_datasets(
+    comments: torch.Tensor,
+    labels: torch.Tensor,
+    test_split: float = 0.2,
+    val_split: float = 0.2,
+):
+    full_size = comments.shape[0]
     train_size = int((1 - test_split - val_split) * full_size)
     val_size = int((full_size - train_size) * val_split)
     test_size = full_size - train_size - val_size
     train_dataset, val_dataset, test_dataset = random_split(
-        CommentDataset(data), [train_size, val_size, test_size]
+        CommentDataset(comments, labels), [train_size, val_size, test_size]
     )
     return train_dataset, val_dataset, test_dataset
 
@@ -86,6 +97,7 @@ def get_tokenizer(model_dir: str, model_id: str):
 def train(
     model: torch.nn.Module,
     config: wandb.Config,
+    comments_text,
     train_loader: DataLoader,
     val_loader: DataLoader,
 ):
@@ -116,7 +128,6 @@ def train(
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    tokenizer = get_tokenizer(config.model_dir, config.base_model_id)
     model.to(device)
 
     example_ct = 0
@@ -127,15 +138,8 @@ def train(
         correct_ct = 0
 
         print(f"Epoch {epoch}:")
-        for step, (comments, labels) in enumerate(train_loader):
-            comments = tokenizer.batch_encode_plus(
-                list(comments), padding=True, truncation=True, return_tensors="pt"
-            )[
-                "input_ids"
-            ].to(  # type: ignore
-                device
-            )
-            comments, labels = comments.to(device), labels.to(device).long()
+        for step, (_, comments, labels) in enumerate(train_loader):
+            comments, labels = comments.to(device), labels.to(device)
 
             outputs = model(comments)
             logits = outputs.logits
@@ -152,7 +156,7 @@ def train(
         train_accuracy = correct_ct / len(train_loader.dataset)  # type: ignore
         val_loss, val_accuracy, val_f1 = _evaluate(
             model,
-            tokenizer,
+            comments_text,
             loss_fn,
             f1_fn,
             val_loader,
@@ -212,7 +216,7 @@ def train(
 
 def _evaluate(
     model: torch.nn.Module,
-    tokenizer,
+    comments_text,
     loss_fn: Callable,
     f1_fn: Callable,
     loader: DataLoader,
@@ -226,11 +230,8 @@ def _evaluate(
         correct_ct = 0
         comments_batched, logits_batched, labels_batched = [], [], []
 
-        for comments_text, labels in loader:
-            comments = tokenizer.batch_encode_plus(
-                list(comments_text), padding=True, truncation=True, return_tensors="pt"
-            )["input_ids"]
-            comments, labels = comments.to(device), labels.to(device).long()
+        for idx, comments, labels in loader:
+            comments, labels = comments.to(device), labels.to(device)
 
             outputs = model(comments)
             logits = outputs.logits
@@ -239,7 +240,7 @@ def _evaluate(
             correct_ct += (torch.argmax(logits, dim=1) == labels).sum().item()
 
             if log_examples:
-                comments_batched.append(comments_text)
+                comments_batched.append(comments_text[idx])
             logits_batched.append(logits.cpu())
             labels_batched.append(labels.cpu())
 
@@ -277,13 +278,14 @@ def log_sample_predictions(comments, predictions, true_labels, probabilities):
     wandb.log({"predictions_table": table}, commit=False)
 
 
-def test(model: torch.nn.Module, config: wandb.Config, loader: DataLoader):
+def test(
+    model: torch.nn.Module, comments_text, config: wandb.Config, loader: DataLoader
+):
     loss_fn = torch.nn.CrossEntropyLoss()
     f1_fn = torchmetrics.F1Score(task="multiclass", num_classes=2, average="macro")
-    tokenizer = get_tokenizer(config.model_dir, config.base_model_id)
     loss, accuracy, f1 = _evaluate(
         model,
-        tokenizer,
+        comments_text,
         loss_fn,
         f1_fn,
         loader,
