@@ -1,21 +1,19 @@
 #!/bin/bash
 
-#SBATCH -o logs/log-%j.out
+#SBATCH --output=logs/log-%j.out
 #SBATCH --nodes=1
-#SBATCH --gpus=rtx_3090:1
-#SBATCH --cpus-per-task=16
-#SBATCH --time=02:00:00
-
-HF_DATASETS_OFFLINE=1 
-TRANSFORMERS_OFFLINE=1
+#SBATCH --gpus=1
+#SBATCH --cpus-per-task=4
+#SBATCH --time=00:10:00
 
 mkdir -p logs
-mkdir -p models_saved
 
-module load python3.11.*
+module load eth_proxy gcc/8.2.0 python_gpu/3.11.2
 
 nvidia-smi
+echo
 
-source "python_venv/bin/activate"
-pip install --force-reinstall torch==1.10.*+cu113 --extra-index-url https://download.pytorch.org/whl/
+source ".venv/bin/activate"
+
+export WANDB__SERVICE_WAIT=300
 python test_baseline.py

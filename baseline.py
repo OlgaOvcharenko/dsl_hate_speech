@@ -1,36 +1,23 @@
-import os
-import random
+from pathlib import Path
 from typing import Callable, Optional
 
-import numpy as np
 import polars as pr
 import torch
-import tqdm
+import torchmetrics
+from torch.utils.data import DataLoader, Dataset, random_split
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-# %%
-SEED = 42
-os.environ["PL_GLOBAL_SEED"] = str(SEED)
-random.seed(SEED)
-np.random.seed(SEED)
-torch.manual_seed(SEED)
-torch.cuda.manual_seed_all(SEED)
-
-MODEL = "models_local/" + "Hate-speech-CNERG/dehatebert-mono-german" + "_model"
-TOKENIZER = "models_local/" + "Hate-speech-CNERG/dehatebert-mono-german" + "_tokenizer"
+import wandb
 
 
-def save_model_local():
+def save_model_local(model_id, model_path, tokenizer_path, num_labels=2):
     AutoModelForSequenceClassification.from_pretrained(
-        MODEL, num_labels=2, local_files_only=True
-    ).save_pretrained(f"models_local/{MODEL}_model")
-    AutoTokenizer.from_pretrained(
-        TOKENIZER
-    ).save_pretrained(f"models_local/{MODEL}_tokenizer")
+        model_id, num_labels=num_labels
+    ).save_pretrained(model_path)
+    AutoTokenizer.from_pretrained(model_id).save_pretrained(tokenizer_path)
 
 
-# %%
-class CommentDataset(torch.utils.data.Dataset):
+class CommentDataset(Dataset):
     def __init__(self, data: pr.DataFrame):
         self.data = data
 
@@ -40,13 +27,11 @@ class CommentDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         return (
             self.data["kommentar"][index],
-            torch.tensor(self.data["label"][index], dtype=torch.float32)
+            torch.tensor(self.data["label"][index], dtype=torch.float32),
         )
 
 
-def setup_data(debug_subset: Optional[int] = None):
-    data_path = "./data/all_DEFR_comments_27062022.csv"
-
+def setup_data(data_path: str, debug_subset: Optional[int] = None):
     df = pr.read_csv(data_path, dtypes={"ArticleID": pr.Utf8, "ID": pr.Utf8})
 
     # TODO: Ask about the NULL values
@@ -64,152 +49,252 @@ def setup_datasets(data: pr.DataFrame, test_split: float = 0.2, val_split: float
     train_size = int((1 - test_split - val_split) * full_size)
     val_size = int((full_size - train_size) * val_split)
     test_size = full_size - train_size - val_size
-    train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(
+    train_dataset, val_dataset, test_dataset = random_split(
         CommentDataset(data), [train_size, val_size, test_size]
     )
     return train_dataset, val_dataset, test_dataset
 
 
-def setup_dataloader(data: torch.utils.data.Dataset, shuffle: bool, batch_size: int = 16):
-    return torch.utils.data.DataLoader(
-        data, batch_size=batch_size, shuffle=shuffle
-    )
+def setup_loader(data: Dataset, shuffle: bool, batch_size: int = 16):
+    return DataLoader(data, batch_size=batch_size, shuffle=shuffle)
 
 
-# %%
-class BERTModule(torch.nn.Module):
-    def __init__(self):
+class PretrainedModule(torch.nn.Module):
+    def __init__(self, config: wandb.Config):
         super().__init__()
         self.model = AutoModelForSequenceClassification.from_pretrained(
-            MODEL, num_labels=2, local_files_only=True
+            f"{config.model_dir}/{config.base_model_id}_model",
+            num_labels=2,
+            local_files_only=True,
         )
 
-        freeze_sublayers = [
-            "encoder.layer.0.",
-            "encoder.layer.1.",
-            "encoder.layer.2.",
-            "encoder.layer.3.",
-            "encoder.layer.4.",
-            "encoder.layer.5.",
-            "encoder.layer.6.",
-            "encoder.layer.7.",
-            "encoder.layer.8.",
-            "encoder.layer.9.",
-            "encoder.layer.10.",
-        ]
         for name, param in self.model.named_parameters():
-            for freeze_layer in freeze_sublayers:
-                if freeze_layer in name:
+            for i in range(11):
+                if f"encoder.layer.{i}." in name:
                     param.requires_grad = False
 
     def forward(self, x):
         return self.model(x)
 
 
-def train_loop(model: torch.nn.Module, epochs: int, train_loader: torch.utils.data.DataLoader,
-               val_loader: torch.utils.data.DataLoader, verbose: bool = False):
-    loss_fn = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=1e-4, momentum=0.9, weight_decay=1e-5)
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    tokenizer = AutoTokenizer.from_pretrained(
-        TOKENIZER
+def get_tokenizer(model_dir: str, model_id: str):
+    return AutoTokenizer.from_pretrained(
+        f"{model_dir}/{model_id}_tokenizer", local_files_only=True
     )
 
-    model.to(device)
-    # tokenizer.to(device)
 
-    for i in range(epochs):
-        model.train()
-        losses = 0
-        print(f"Epoch {i}:")
-        for batch_X, batch_Y in tqdm.tqdm(train_loader):
-            batch_X = tokenizer.batch_encode_plus(
-                list(batch_X), padding=True, truncation=True, return_tensors="pt"
-            )["input_ids"].to(device)
+def train(
+    model: torch.nn.Module,
+    config: wandb.Config,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+):
+    loss_fn = torch.nn.CrossEntropyLoss()
+    f1_fn = torchmetrics.F1Score(task="multiclass", num_classes=2)
+    assert wandb.run is not None
+    wandb.watch(model, loss_fn, log="all", log_freq=100)
 
-            batch_X, batch_Y = batch_X.to(device), batch_Y.to(device)
+    checkpoint_path = Path(config.model_dir) / wandb.run.name
+    checkpoint_path.mkdir(parents=True, exist_ok=True)
 
-            optimizer.zero_grad()
-            if torch.cuda.is_available():
-                batch_X = batch_X.cuda()
-                batch_Y = batch_Y.cuda()
+    # Default optimizer
+    optimizer = torch.optim.SGD(
+        model.parameters(),
+        lr=config.learning_rate,
+        momentum=config.momentum,
+        weight_decay=config.weight_decay,
+    )
 
-            outputs = model(batch_X)
+    if config.optimizer == "SGD":
+        optimizer = torch.optim.SGD(
+            model.parameters(),
+            lr=config.learning_rate,
+            momentum=config.momentum,
+            weight_decay=config.weight_decay,
+        )
+    assert optimizer is not None
 
-            logits = outputs.logits
-            batch_Y = torch.squeeze(batch_Y).long()
-            loss = loss_fn(logits, batch_Y)
-
-            loss.backward()
-            optimizer.step()
-
-            losses += loss.item()
-
-        if verbose:
-            print(f"Train loss after {epochs: 04d} epochs: {losses / ((i + 1) * len(train_loader)): 0.4f}")
-
-        if i % 10 == 0:
-            validation(model, tokenizer, loss_fn, val_loader, epochs, device)
-
-    return model, tokenizer
-
-
-def validation(model: torch.nn.Module, tokenizer, loss_fn: Callable, val_dataloader: torch.utils.data.DataLoader,
-               epochs: int, device: str = "cpu"):
-    with torch.inference_mode():
-        model.eval()
-
-        val_loss = 0
-        targets, outs = [], []
-        print("Validation:")
-        for valid_X, valid_Y in tqdm.tqdm(val_dataloader):
-            valid_X = tokenizer.batch_encode_plus(
-                list(valid_X), padding=True, truncation=True, return_tensors="pt"
-            )["input_ids"]
-            valid_X, valid_Y = valid_X.to(device), valid_Y.to(device)
-
-            outputs = model(valid_X)
-            logits = outputs.logits
-            # logits = torch.argmax(logits, dim=1)
-
-            # outs.extend(logits > 0)
-            outs.extend(np.argmax(logits.cpu().numpy(), axis=1))
-
-            targets.extend(valid_Y)
-            valid_Y = valid_Y.unsqueeze(0)
-            valid_Y = valid_Y[0, :]
-            valid_Y = torch.squeeze(valid_Y).long()
-            val_loss += loss_fn(logits, valid_Y).item()
-        val_loss = val_loss / len(val_dataloader)
-        # scheduler.step(val_loss)
-        print(f"  Val loss after {epochs: 04d} epochs: {val_loss: 0.4f}")
-
-
-def test(model: torch.nn.Module, tokenizer, test_dataloader: torch.utils.data.DataLoader):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    with torch.inference_mode():
-        model.eval()
-        pred_Y, test_Y_all = [], []
+    tokenizer = get_tokenizer(config.model_dir, config.base_model_id)
+    model.to(device)
 
-        print("Test:")
-        for test_X, test_Y in tqdm.tqdm(test_dataloader):
-            test_X = tokenizer.batch_encode_plus(
-                list(test_X), padding=True, truncation=True, return_tensors="pt"
-            )["input_ids"]
-            test_X, test_Y = test_X.to(device), test_Y.to(device)
+    example_ct = 0
+    model_best, model_latest = None, None
+    best_val_loss = float("inf")
+    for epoch in range(config.epochs):
+        model.train()
+        correct_ct = 0
 
-            outputs = model(test_X)
+        print(f"Epoch {epoch}:")
+        for comments, labels in train_loader:
+            comments = tokenizer.batch_encode_plus(
+                list(comments), padding=True, truncation=True, return_tensors="pt"
+            )[
+                "input_ids"
+            ].to(  # type: ignore
+                device
+            )
+            comments, labels = comments.to(device), labels.to(device).long()
+
+            outputs = model(comments)
             logits = outputs.logits
-            pred_Y.extend(np.argmax(logits.cpu().numpy(), axis=1))
-            test_Y_all.extend(test_Y.cpu().numpy())
+            train_loss = loss_fn(logits, labels)
+            optimizer.zero_grad()
+            train_loss.backward()
+            optimizer.step()
 
-        pred_Y = np.array(pred_Y)
-        test_Y_all = np.array(test_Y_all)
+            example_ct += len(comments)
+            correct_ct += (torch.argmax(logits, dim=1) == labels).sum().item()
+            wandb.log({"train/loss": train_loss}, step=example_ct)
 
-        acc = sum(pred_Y == test_Y_all) / len(test_Y_all)
-        print(f"Accuracy is {acc}")
+        train_accuracy = correct_ct / len(train_loader.dataset)  # type: ignore
+        val_loss, val_accuracy, val_f1 = validate(
+            model,
+            tokenizer,
+            loss_fn,
+            f1_fn,
+            val_loader,
+            log_examples=True,
+            log_n_worst=config.log_n_worst,
+            device=device,
+        )
 
-        return pred_Y, test_Y_all
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            model_best = {
+                "epoch": epoch,
+                "model": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+            }
+        model_latest = {
+            "epoch": epoch,
+            "model": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+        }
+
+        if (
+            epoch > 0
+            and config.checkpoint_every_n is not None
+            and epoch % config.checkpoint_every_n == 0
+        ):
+            torch.save(
+                model_latest,
+                checkpoint_path / f"{config.model_name}_epoch={epoch}.ckpt",
+            )
+
+        wandb.log(
+            {
+                "validation/loss": val_loss,
+                "validation/accuracy": val_accuracy,
+                "validation/f1": val_f1,
+                "train/accuracy": train_accuracy,
+                "epoch": epoch,
+            },
+            step=example_ct,
+        )
+
+        print(
+            f"Train Acc: {train_accuracy:.2f}, Val Loss: {val_loss:2f}, Val Acc: {val_accuracy:.2f}"
+        )
+        print()
+
+    torch.save(model_latest, checkpoint_path / f"{config.model_name}_latest.ckpt")
+    torch.save(model_best, checkpoint_path / f"{config.model_name}_best.ckpt")
+    model_artifact = wandb.Artifact(
+        "toxicity-baseline",
+        type="model",
+        metadata=dict(config),
+    )
+    model_artifact.add_file(checkpoint_path / f"{config.model_name}_best.ckpt")
+    wandb.log_artifact(model_artifact, aliases=["best", "latest"])
+
+
+def validate(
+    model: torch.nn.Module,
+    tokenizer,
+    loss_fn: Callable,
+    f1_fn: Callable,
+    loader: DataLoader,
+    log_examples: bool,
+    log_n_worst: int,
+    device: torch.device = torch.device("cpu"),
+):
+    model.eval()
+    with torch.inference_mode():
+        loss = 0
+        correct_ct = 0
+        comments_batched, logits_batched, labels_batched = [], [], []
+        print("Validation:")
+        for comments_text, labels in loader:
+            comments = tokenizer.batch_encode_plus(
+                list(comments_text), padding=True, truncation=True, return_tensors="pt"
+            )["input_ids"]
+            comments, labels = comments.to(device), labels.to(device).long()
+
+            outputs = model(comments)
+            logits = outputs.logits
+
+            loss += loss_fn(logits, labels).item() * labels.size(0)
+            correct_ct += (torch.argmax(logits, dim=1) == labels).sum().item()
+
+            if log_examples:
+                comments_batched.append(comments_text)
+            logits_batched.append(logits.cpu())
+            labels_batched.append(labels.cpu())
+
+        comments = [comment for batch in comments_batched for comment in batch]
+        logits = torch.cat(logits_batched, dim=0)
+        labels = torch.cat(labels_batched, dim=0)
+
+        if log_examples:
+            losses = torch.nn.CrossEntropyLoss(reduction="none")(logits, labels)
+            _, top_n_indices = torch.topk(losses, min(log_n_worst, losses.size(0)))
+            predictions = torch.argmax(logits[top_n_indices], dim=1)
+            log_sample_predictions(
+                [comments[i] for i in top_n_indices],
+                predictions,
+                labels[top_n_indices],
+                logits.softmax(dim=1),
+            )
+
+        f1 = f1_fn(logits, labels)
+
+        return loss / len(loader.dataset), correct_ct / len(loader.dataset), f1  # type: ignore
+
+
+def log_sample_predictions(comments, predictions, true_labels, probabilities):
+    table = wandb.Table(
+        columns=["comment", "prediction", "target", "prob_non_toxic", "prob_toxic"]
+    )
+    for text, pred, targ, prob in zip(
+        comments,
+        predictions.to("cpu"),
+        true_labels.to("cpu"),
+        probabilities.to("cpu"),
+    ):
+        table.add_data(text, pred, targ, *prob.numpy())
+    wandb.log({"predictions_table": table}, commit=False)
+
+
+def test(model: torch.nn.Module, config: wandb.Config, loader: DataLoader):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    tokenizer = get_tokenizer(config.model_dir, config.base_model_id)
+
+    model.eval()
+    with torch.inference_mode():
+        print("Test:")
+        correct_ct = 0
+        for comments, labels in loader:
+            comments = tokenizer.batch_encode_plus(
+                list(comments), padding=True, truncation=True, return_tensors="pt"
+            )["input_ids"]
+            comments, labels = comments.to(device), labels.to(device).long()  # type: ignore
+
+            outputs = model(comments)
+            logits = outputs.logits
+            correct_ct += (torch.argmax(logits, dim=1) == labels).sum().item()
+
+        test_accuracy = correct_ct / len(loader.dataset)  # type: ignore
+        wandb.summary["test_accuracy"] = test_accuracy
+        print(f"Test Accuracy: {test_accuracy}")

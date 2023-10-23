@@ -159,7 +159,8 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-wandb/*
+wandb
+logs
 
 .DS_Store
 
@@ -168,6 +169,7 @@ data/
 python_venv/
 
 models_local/
+models/
 copy_model.sh
 
 .idea
