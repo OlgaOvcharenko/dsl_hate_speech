@@ -90,7 +90,7 @@ def train(
     val_loader: DataLoader,
 ):
     loss_fn = torch.nn.CrossEntropyLoss()
-    f1_fn = torchmetrics.F1Score(task="multiclass", num_classes=2)
+    f1_fn = torchmetrics.F1Score(task="multiclass", num_classes=2, average="macro")
     assert wandb.run is not None
     wandb.watch(model, loss_fn, log="all", log_freq=100)
 
@@ -127,7 +127,7 @@ def train(
         correct_ct = 0
 
         print(f"Epoch {epoch}:")
-        for comments, labels in train_loader:
+        for step, (comments, labels) in enumerate(train_loader):
             comments = tokenizer.batch_encode_plus(
                 list(comments), padding=True, truncation=True, return_tensors="pt"
             )[
@@ -146,18 +146,18 @@ def train(
 
             example_ct += len(comments)
             correct_ct += (torch.argmax(logits, dim=1) == labels).sum().item()
-            wandb.log({"train/loss": train_loss}, step=example_ct)
+            if step % 64 == 0:
+                wandb.log({"train/loss": train_loss}, step=example_ct)
 
         train_accuracy = correct_ct / len(train_loader.dataset)  # type: ignore
-        val_loss, val_accuracy, val_f1 = validate(
+        val_loss, val_accuracy, val_f1 = _evaluate(
             model,
             tokenizer,
             loss_fn,
             f1_fn,
             val_loader,
-            log_examples=True,
+            log_examples=(epoch % config.checkpoint_every_n == 0),
             log_n_worst=config.log_n_worst,
-            device=device,
         )
 
         if val_loss < best_val_loss:
@@ -210,7 +210,7 @@ def train(
     wandb.log_artifact(model_artifact, aliases=["best", "latest"])
 
 
-def validate(
+def _evaluate(
     model: torch.nn.Module,
     tokenizer,
     loss_fn: Callable,
@@ -218,14 +218,14 @@ def validate(
     loader: DataLoader,
     log_examples: bool,
     log_n_worst: int,
-    device: torch.device = torch.device("cpu"),
 ):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.eval()
     with torch.inference_mode():
         loss = 0
         correct_ct = 0
         comments_batched, logits_batched, labels_batched = [], [], []
-        print("Validation:")
+
         for comments_text, labels in loader:
             comments = tokenizer.batch_encode_plus(
                 list(comments_text), padding=True, truncation=True, return_tensors="pt"
@@ -278,23 +278,16 @@ def log_sample_predictions(comments, predictions, true_labels, probabilities):
 
 
 def test(model: torch.nn.Module, config: wandb.Config, loader: DataLoader):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    loss_fn = torch.nn.CrossEntropyLoss()
+    f1_fn = torchmetrics.F1Score(task="multiclass", num_classes=2, average="macro")
     tokenizer = get_tokenizer(config.model_dir, config.base_model_id)
-
-    model.eval()
-    with torch.inference_mode():
-        print("Test:")
-        correct_ct = 0
-        for comments, labels in loader:
-            comments = tokenizer.batch_encode_plus(
-                list(comments), padding=True, truncation=True, return_tensors="pt"
-            )["input_ids"]
-            comments, labels = comments.to(device), labels.to(device).long()  # type: ignore
-
-            outputs = model(comments)
-            logits = outputs.logits
-            correct_ct += (torch.argmax(logits, dim=1) == labels).sum().item()
-
-        test_accuracy = correct_ct / len(loader.dataset)  # type: ignore
-        wandb.summary["test_accuracy"] = test_accuracy
-        print(f"Test Accuracy: {test_accuracy}")
+    loss, accuracy, f1 = _evaluate(
+        model,
+        tokenizer,
+        loss_fn,
+        f1_fn,
+        loader,
+        log_examples=True,
+        log_n_worst=config.log_n_worst,
+    )
+    wandb.summary.update({"test/loss": loss, "test/accuracy": accuracy, "test/f1": f1})
