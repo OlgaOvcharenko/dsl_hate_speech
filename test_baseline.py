@@ -22,7 +22,7 @@ wandb.init(
         "learning_rate": 1e-4,
         "momentum": 0.9,
         "weight_decay": 1e-5,
-        "data_path": "./data/all_comments_lang.csv",
+        "data_path": "./data/clean_comments_non-fr.csv",
         "model_dir": "./models",
         "base_model_id": "Hate-speech-CNERG/dehatebert-mono-german",
         "model_name": "toxicity-baseline",
@@ -41,9 +41,7 @@ np.random.seed(config.seed)
 torch.manual_seed(config.seed)
 torch.cuda.manual_seed_all(config.seed)
 
-comments_text, comments, labels = setup_data(
-    config.data_path, debug_subset=config.debug_subset
-)
+comments_text, comments, labels = setup_data(config, debug_subset=config.debug_subset)
 train_dataset, val_dataset, test_dataset = setup_datasets(comments, labels)  # type: ignore
 train_loader = setup_loader(train_dataset, shuffle=True, batch_size=config.batch_size)
 val_loader = setup_loader(val_dataset, shuffle=False, batch_size=config.batch_size)

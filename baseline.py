@@ -46,7 +46,7 @@ def setup_data(config: wandb.Config, debug_subset: Optional[int] = None):
         )["input_ids"]
         torch.save(tokenized_comments, tokenized_path)
 
-    labels = torch.from_numpy(df["toxic"].to_numpy())
+    labels = torch.tensor(df["toxic"].to_numpy())
     return df["comment"], tokenized_comments, labels
 
 
@@ -240,7 +240,7 @@ def _evaluate(
             correct_ct += (torch.argmax(logits, dim=1) == labels).sum().item()
 
             if log_examples:
-                comments_batched.append(comments_text[idx])
+                comments_batched.append(comments_text[idx.tolist()])
             logits_batched.append(logits.cpu())
             labels_batched.append(labels.cpu())
 
