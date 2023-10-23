@@ -29,9 +29,9 @@ wandb.init(
         "epochs": 10,
         "batch_size": 16,
         "debug_subset": None,
-        "checkpoint_every_n": 2,
+        "checkpoint_every_n": 3,
         "log_n_worst": 100,
-        "log_model_to_wandb": False,
+        "log_model_to_wandb": True,
     },
 )
 config = wandb.config
