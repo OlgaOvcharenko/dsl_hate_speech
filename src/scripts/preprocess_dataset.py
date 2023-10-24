@@ -2,11 +2,10 @@
 import polars as pl
 import polars.selectors as cs
 from polars import col as c
-from transformers import AutoTokenizer
 
 # %%
 df = pl.read_csv(
-    "data/all_comments_lang.csv", dtypes={"ArticleID": pl.Utf8, "ID": pl.Utf8}
+    "../../data/all_comments_lang.csv", dtypes={"ArticleID": pl.Utf8, "ID": pl.Utf8}
 )
 
 # %%
@@ -43,4 +42,23 @@ df = (
 )
 
 # %%
-df.write_csv("data/clean_comments_non-fr.csv")
+
+
+def normalize_text(comment):
+    return (
+        comment.replace("ü", "ue")
+        .replace("ö", "oe")
+        .replace("ä", "ae")
+        .replace("Ü", "UE")
+        .replace("Ö", "OE")
+        .replace("Ä", "AE")
+    )
+
+
+df = df.with_columns(comment=c("comment").map_elements(normalize_text))
+
+
+# %%
+df.write_csv("../../data/clean_comments_non-fr_v1.csv")
+
+# %%
