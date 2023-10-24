@@ -2,10 +2,10 @@
 
 #SBATCH --output=logs/log-%j.out
 #SBATCH --nodes=1
-#SBATCH --gpus=rtx_3090:1
-#SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=32G
-#SBATCH --time=8:00:00
+#SBATCH --gpus=1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem-per-cpu=4G
+#SBATCH --time=18:00:00
 
 mkdir -p logs
 
@@ -17,4 +17,5 @@ echo
 source ".venv/bin/activate"
 
 export WANDB__SERVICE_WAIT=300
-python test_baseline.py
+# python src/train_toxicity_baseline.py
+python src/train_target_baseline.py
