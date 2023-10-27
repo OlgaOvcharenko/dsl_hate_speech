@@ -12,6 +12,7 @@ charset-normalizer
 idna
 ipykernel
 isort
+iterative-stratification
 Jinja2
 MarkupSafe
 mpmath
