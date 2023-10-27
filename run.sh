@@ -17,4 +17,4 @@ echo
 source ".venv/bin/activate"
 
 export WANDB__SERVICE_WAIT=300
-python test_baseline.py
+python test_baseline.py $1

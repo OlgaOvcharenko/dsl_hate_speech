@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import polars as pr
+import numpy as np
 import torch
 import torchmetrics
 import wandb.plot
@@ -10,13 +11,6 @@ from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 import wandb
-
-
-def save_model_local(model_id, model_path, tokenizer_path, num_labels=2):
-    AutoModelForSequenceClassification.from_pretrained(
-        model_id, num_labels=num_labels
-    ).save_pretrained(model_path)
-    AutoTokenizer.from_pretrained(model_id).save_pretrained(tokenizer_path)
 
 
 class CommentDataset(Dataset):
@@ -339,6 +333,11 @@ def test(
 
     f1, auprc, accuracy, precision_0, precision_1, recall_0, recall_1 = compute_metrics(
         logits, labels
+    )
+
+    np.savetxt(
+        config.logits_path + '/' + config.base_model_id, logits.numpy(),  
+        delimiter=',', newline='\n', header='', footer='', comments=''
     )
 
     wandb.summary.update(
