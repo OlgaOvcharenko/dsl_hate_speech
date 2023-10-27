@@ -59,6 +59,38 @@ def train(
     example_ct = 0
     model_best, model_latest = None, None
     best_val_loss = float("inf")
+
+    if config.reweigh_loss:
+        # TODO: Replace hand-coded class weights with computed ones
+        if len(config.class_names) == 2:
+            loss_fn = torch.nn.CrossEntropyLoss(
+                weight=torch.tensor([0.61230458, 2.726089]), reduction="none"
+            )
+        else:
+            loss_fn = torch.nn.BCEWithLogitsLoss(
+                weight=torch.tensor(
+                    [
+                        1.2195804195804196,
+                        4.298591549295774,
+                        5.482634730538922,
+                        3.760164271047228,
+                        0.4910041560530902,
+                        10.230167597765362,
+                        0.9755993606819393,
+                        0.2614319366121779,
+                        4.36,
+                        0.7780752071383047,
+                    ]
+                ),
+                reduction="none",
+            )
+    else:
+        if len(config.class_names) == 2:
+            loss_fn = torch.nn.CrossEntropyLoss(reduction="none")
+        else:
+            loss_fn = torch.nn.BCEWithLogitsLoss(reduction="none")
+    loss_fn = loss_fn.to(device)
+
     for epoch in range(config.epochs):
         model.train()
 
@@ -68,10 +100,11 @@ def train(
 
             outputs = model(input_ids=comments, labels=labels)
             optimizer.zero_grad()
-            outputs.loss.backward()
+            loss = loss_fn(outputs.logits, labels)
+            loss.backward()
             optimizer.step()
 
-            train_metrics_vals = train_metrics(value=outputs.loss * labels.size(0))
+            train_metrics_vals = train_metrics(value=loss)
 
             example_ct += labels.size(0)
             if step % 512 == 0:
