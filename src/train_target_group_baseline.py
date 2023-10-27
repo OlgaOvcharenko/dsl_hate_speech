@@ -10,7 +10,7 @@ optimizer_config = {
 }
 
 training_config = {
-    "epochs": 2,
+    "epochs": 4,
     "batch_size": 16,
     "debug_subset": 200,
     "checkpoint_every_n": 1,
@@ -19,17 +19,22 @@ training_config = {
 }
 
 model_config = {
-    "model_name": "target-detection-baseline",
+    "model_name": "target-group-detection-baseline",
     "model_dir": "./models",
     "base_model_id": "Hate-speech-CNERG/dehatebert-mono-german_labels=10",
     "layers_to_freeze": list(range(11)),
 }
 
+data_config = {
+    "train_data": "data/processed_comments_train_v1.csv",
+    "evaluation_data": "data/processed_comments_evaluation_v1.csv",
+    "validation_split": 0.2,
+}
+
 wandb.init(
-    project="target-detection-baseline",
+    project="target-group-detection-baseline",
     config={
         "seed": 42,
-        "data_path": "./data/clean_comments_non-fr.csv",
         "class_names": [
             "gender",
             "age",
@@ -43,6 +48,7 @@ wandb.init(
             "other",
         ],
     }
+    | data_config
     | optimizer_config
     | training_config
     | model_config,

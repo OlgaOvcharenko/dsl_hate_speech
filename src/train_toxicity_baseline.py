@@ -25,6 +25,12 @@ model_config = {
     "layers_to_freeze": list(range(11)),
 }
 
+data_config = {
+    "train_data": "data/processed_comments_train_v1.csv",
+    "evaluation_data": "data/processed_comments_evaluation_v1.csv",
+    "validation_split": 0.2,
+}
+
 wandb.init(
     project="toxicity-detection-baseline",
     config={
@@ -32,6 +38,7 @@ wandb.init(
         "data_path": "./data/clean_comments_non-fr.csv",
         "class_names": ["non_noxic", "toxic"],
     }
+    | data_config
     | optimizer_config
     | training_config
     | model_config,

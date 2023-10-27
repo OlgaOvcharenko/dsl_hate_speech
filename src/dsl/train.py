@@ -1,10 +1,23 @@
 from pathlib import Path
+from typing import Optional
 
+import numpy as np
 import polars as pr
 import torch
 import wandb.plot
 from torch.utils.data import DataLoader
-from torchmetrics import AUROC, Accuracy, AveragePrecision, F1Score, Precision, Recall
+from torchmetrics import (
+    Accuracy,
+    AveragePrecision,
+    CalibrationError,
+    F1Score,
+    MeanMetric,
+    Metric,
+    MetricCollection,
+    Precision,
+    PrecisionRecallCurve,
+    Recall,
+)
 
 import wandb
 
@@ -40,8 +53,8 @@ def train(
     assert optimizer is not None
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    model.to(device)
+    train_metrics = _setup_metrics(len(config.class_names), stage="train").to(device)
+    model = model.to(device)
 
     example_ct = 0
     model_best, model_latest = None, None
@@ -54,28 +67,27 @@ def train(
             comments, labels = comments.to(device), labels.to(device)
 
             outputs = model(input_ids=comments, labels=labels)
-            logits = outputs.logits
-            train_loss = outputs.loss
             optimizer.zero_grad()
-            train_loss.backward()
+            outputs.loss.backward()
             optimizer.step()
 
-            example_ct += len(comments)
-            if step % 512 == 0:
-                wandb.log({"train/loss": train_loss}, step=example_ct)
+            train_metrics_vals = train_metrics(value=outputs.loss * labels.size(0))
 
-        val_loss, logits, labels = _evaluate(
+            example_ct += labels.size(0)
+            if step % 512 == 0:
+                wandb.log(train_metrics_vals, step=example_ct)
+
+        val_metrics = _evaluate(
             model=model,
             comments_text=comments_text,
             class_names=config.class_names,
             loader=val_loader,
-            log_examples=(epoch % config.checkpoint_every_n == 0),
-            log_n_worst=config.log_n_worst,
+            log_examples=False,
             stage="validation",
         )
 
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        if val_metrics["validation/loss"] < best_val_loss:
+            best_val_loss = val_metrics["validation/loss"]
             model_best = {
                 "epoch": epoch,
                 "model": model.state_dict(),
@@ -96,19 +108,7 @@ def train(
                 checkpoint_path / f"{config.model_name}_epoch={epoch}.ckpt",
             )
 
-        metrics = _compute_metrics(
-            logits, labels, config.class_names, stage="validation"
-        )
-        metrics.update({"validation/loss": val_loss, "epoch": epoch})
-
-        if len(config.class_names) == 2:
-            metrics["validation/pr_curve"] = wandb.plot.pr_curve(
-                y_true=labels,
-                y_probas=torch.softmax(logits, dim=1),
-                labels=config.class_names,
-            )
-
-        wandb.log(metrics, step=example_ct)
+        wandb.log(val_metrics, step=example_ct)
 
     torch.save(model_latest, checkpoint_path / f"{config.model_name}_latest.ckpt")
     torch.save(model_best, checkpoint_path / f"{config.model_name}_best.ckpt")
@@ -120,24 +120,23 @@ def train(
         wandb.log_artifact(model_artifact, aliases=["best", "latest"])
 
 
-def test(
+def evaluate(
     model: torch.nn.Module,
     comments_text: pr.Series,
     config: wandb.Config,
     loader: DataLoader,
 ):
-    loss, logits, labels = _evaluate(
+    metrics = _evaluate(
         model=model,
         comments_text=comments_text,
         loader=loader,
         log_examples=True,
         log_n_worst=config.log_n_worst,
         class_names=config.class_names,
-        stage="test",
+        stage="evaluation",
     )
 
-    metrics = _compute_metrics(logits, labels, config.class_names, stage="test")
-    wandb.summary.update(metrics | {"test/loss": loss})
+    wandb.log(metrics)
 
 
 def _evaluate(
@@ -145,14 +144,15 @@ def _evaluate(
     comments_text: pr.Series,
     loader: DataLoader,
     log_examples: bool,
-    log_n_worst: int,
     class_names: list[str],
     stage: str,
+    log_n_worst: Optional[int] = None,
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    metrics = _setup_metrics(len(class_names), stage=stage).to(device)
     model.eval()
+
     with torch.inference_mode():
-        loss = 0
         comments_batched, logits_batched, labels_batched = [], [], []
 
         for idx, comments, labels in loader:
@@ -160,72 +160,114 @@ def _evaluate(
 
             outputs = model(input_ids=comments, labels=labels)
             logits = outputs.logits
-
-            loss += outputs.loss.item() * labels.size(0)
+            metrics.update(
+                value=outputs.loss.item() * labels.size(0),
+                preds=logits,
+                target=labels.long(),
+            )
 
             if log_examples:
                 comments_batched.append(comments_text[idx.tolist()])
-            logits_batched.append(logits.cpu())
-            labels_batched.append(labels.cpu())
-
-        comments = [comment for batch in comments_batched for comment in batch]
-        logits = torch.cat(logits_batched, dim=0)
-        labels = torch.cat(labels_batched, dim=0)
+                logits_batched.append(logits.cpu())
+                labels_batched.append(labels.cpu())
 
         if log_examples:
+            comments = [comment for batch in comments_batched for comment in batch]
+            logits = torch.cat(logits_batched, dim=0)
+            labels = torch.cat(labels_batched, dim=0)
             losses = torch.nn.CrossEntropyLoss(reduction="none")(logits, labels)
-            _, top_n_indices = torch.topk(losses, min(log_n_worst, losses.size(0)))
-            predictions = torch.argmax(logits[top_n_indices], dim=1)
+
+            if log_n_worst is None:
+                log_n_worst = losses.size(0)
+            _, indices = torch.topk(losses, min(log_n_worst, losses.size(0)))
+            predictions = torch.argmax(logits[indices], dim=1)
             _log_sample_predictions(
-                [comments[i] for i in top_n_indices],
+                [comments[i] for i in indices],
                 predictions,
-                labels[top_n_indices],
+                labels[indices],
                 logits.softmax(dim=1),
                 class_names,
                 stage=stage,
             )
 
-        total = len(loader.dataset)  # type: ignore
-        return loss / total, logits, labels
+        return _compute_metrics(class_names, metrics)
 
 
-def _compute_metrics(logits, labels, class_names, stage=""):
-    labels = labels.long()
-    if len(class_names) == 2:
-        task = "multiclass"
-        f1_fn = F1Score(task=task, num_classes=2, average="macro")
-        auprc_fn = AveragePrecision(task=task, num_classes=2, average="macro")
-        auroc_fn = AUROC(task=task, num_classes=2, average="macro")
-        accuracy_fn = Accuracy(task=task, num_classes=2, average="macro")
-        precision_fn = Precision(task=task, num_classes=2, average="none")
-        recall_fn = Recall(task=task, num_classes=2, average="none")
+def _setup_metrics(num_classes: int, stage: str):
+    if num_classes == 2:
+        kwargs = {"task": "multiclass", "num_classes": 2}
     else:
-        n = len(class_names)
-        task = "multilabel"
-        f1_fn = F1Score(task=task, num_labels=n, average="macro")
-        auprc_fn = AveragePrecision(task=task, num_labels=n, average="macro")
-        auroc_fn = AUROC(task=task, num_labels=n, average="macro")
-        accuracy_fn = Accuracy(task=task, num_labels=n, average="macro")
-        precision_fn = Precision(task=task, num_labels=n, average="none")
-        recall_fn = Recall(task=task, num_labels=n, average="none")
+        kwargs = {"task": "multilabel", "num_labels": num_classes}
 
-    f1 = f1_fn(logits, labels).item()
-    auprc = auprc_fn(logits, labels).item()
-    auroc = auroc_fn(logits, labels).item()
-    accuracy = accuracy_fn(logits, labels).item()
-    precisions = precision_fn(logits, labels)
-    recalls = recall_fn(logits, labels)
-
-    return (
-        {
-            f"{stage}/f1": f1,
-            f"{stage}/auprc": auprc,
-            f"{stage}/auroc": auroc,
-            f"{stage}/accuracy": accuracy,
+    if stage == "train":
+        metrics = {"loss": MeanMetric()}
+    else:
+        metrics: dict[str, Metric] = {
+            "f1": F1Score(average="none", **kwargs),
+            "auprc": AveragePrecision(average="none", **kwargs),
+            "accuracy": Accuracy(average="macro", **kwargs),
+            "precision": Precision(average="none", **kwargs),
+            "recall": Recall(average="none", **kwargs),
+            "pr_curve": PrecisionRecallCurve(thresholds=20, **kwargs),
+            "loss": MeanMetric(),
+        } | {
+            f"f1_{i}": F1Score(average="none", threshold=thr, **kwargs)
+            for i, thr in enumerate(np.arange(0, 1.01, 0.05))
         }
-        | {f"{stage}/precision_{c}": p for c, p in zip(class_names, precisions)}
-        | {f"{stage}/recall_{c}": p for c, p in zip(class_names, recalls)}
-    )
+        if num_classes == 2:
+            metrics["calibration_error"] = CalibrationError(**kwargs)
+
+    return MetricCollection(metrics, prefix=f"{stage}/")
+
+
+def _log_pr_curve(class_name, precision, recall, thresholds, stage):
+    pr_curve_table = wandb.Table(columns=["threshold", "precision", "recall", "class"])
+    for t, p, r in zip(thresholds, precision, recall):
+        pr_curve_table.add_data(t, p, r, class_name)
+    return wandb.plot.line(pr_curve_table, "recall", "precision", title="PR Curve")
+
+
+def _compute_metrics(class_names, metrics):
+    results = metrics.compute()
+    metrics.reset()
+    f1_curve_tables = {}
+    stage = ""
+    for name, value in list(results.items()):
+        if "pr_curve" in name:
+            stage, _ = name.split("/")
+            precision, recall, thresholds = value
+            for i in range(len(class_names)):
+                results[f"{stage}/{class_names[i]}/pr_curve"] = _log_pr_curve(
+                    class_names[i], precision[i], recall[i], thresholds, stage
+                )
+        elif "f1_" in name:
+            # HACK: Create a custom Metric for this
+            threshold = np.arange(0, 1.01, 0.05)[int(name.split("f1_")[1])]
+            for i in range(len(class_names)):
+                table = f1_curve_tables.setdefault(
+                    class_names[i], wandb.Table(columns=["threshold", "f1", "class"])
+                )
+                table.add_data(threshold, value[i], class_names[i])
+        elif len(value.shape) == 0:
+            results[name] = value.item()
+        else:
+            # Store the per-class values
+            stage, bare_name = name.split("/")
+            results.update(
+                {
+                    f"{stage}/{cls}/{bare_name}": val
+                    for cls, val in zip(class_names, value)
+                }
+            )
+            # Store a macro-average, too
+            results[name] = value.mean().item()
+    if f1_curve_tables:
+        for i in range(len(class_names)):
+            results[f"{stage}/{class_names[i]}/f1_curve"] = wandb.plot.line(
+                f1_curve_tables[class_names[i]], "threshold", "f1", title="F1 Curve"
+            )
+
+    return results
 
 
 def _log_sample_predictions(
