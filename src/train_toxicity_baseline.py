@@ -10,17 +10,18 @@ optimizer_config = {
 }
 
 training_config = {
-    "epochs": 2,
+    "epochs": 10,
     "batch_size": 16,
-    "debug_subset": 100,
+    "debug_subset": None,
     "checkpoint_every_n": 1,
     "log_n_worst": 100,
     "log_model_to_wandb": False,
+    "reweigh_loss": True,
 }
 
 model_config = {
     "model_name": "toxicity-detection-baseline",
-    "model_dir": "./models",
+    "model_dir": "/cluster/scratch/ewybitul/models",
     "base_model_id": "Hate-speech-CNERG/dehatebert-mono-german_labels=2",
     "layers_to_freeze": list(range(11)),
 }
@@ -32,7 +33,7 @@ data_config = {
 }
 
 wandb.init(
-    project="toxicity-detection-baseline",
+    project="toxicity-detection",
     config={
         "seed": 42,
         "data_path": "./data/clean_comments_non-fr.csv",

@@ -10,17 +10,18 @@ optimizer_config = {
 }
 
 training_config = {
-    "epochs": 4,
+    "epochs": 10,
     "batch_size": 16,
-    "debug_subset": 200,
+    "debug_subset": None,
     "checkpoint_every_n": 1,
     "log_n_worst": 100,
-    "log_model_to_wandb": False,
+    "log_model_to_wandb": True,
+    "reweigh_loss": True,
 }
 
 model_config = {
     "model_name": "target-group-detection-baseline",
-    "model_dir": "./models",
+    "model_dir": "/cluster/scratch/ewybitul/models",
     "base_model_id": "Hate-speech-CNERG/dehatebert-mono-german_labels=10",
     "layers_to_freeze": list(range(11)),
 }
@@ -32,7 +33,7 @@ data_config = {
 }
 
 wandb.init(
-    project="target-group-detection-baseline",
+    project="target-group-detection",
     config={
         "seed": 42,
         "class_names": [
