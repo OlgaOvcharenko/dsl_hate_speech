@@ -1,25 +1,14 @@
 from pathlib import Path
 from typing import Any, Optional
 
-import numpy as np
 import polars as pr
 import torch
 import wandb.plot
 from torch.utils.data import DataLoader
-from torchmetrics import (
-    Accuracy,
-    AveragePrecision,
-    CalibrationError,
-    F1Score,
-    MeanMetric,
-    Metric,
-    MetricCollection,
-    Precision,
-    PrecisionRecallCurve,
-    Recall,
-)
+from torchmetrics import MetricCollection
 
 import wandb
+from dsl.metrics import log_sample_predictions, process_metrics, setup_metrics
 
 
 def train(
@@ -53,8 +42,8 @@ def train(
     assert optimizer is not None
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    train_metrics = _setup_metrics(len(config.class_names), stage="train").to(device)
-    val_metrics = _setup_metrics(len(config.class_names), stage="validation").to(device)
+    train_metrics = setup_metrics(len(config.class_names), stage="train").to(device)
+    val_metrics = setup_metrics(len(config.class_names), stage="validation").to(device)
     model = model.to(device)
 
     example_ct = 0
@@ -115,7 +104,7 @@ def train(
             example_ct += labels.size(0)
             if step % config.log_every_nth_step == 0:
                 wandb.log(
-                    _process_metrics(train_metrics_vals, config.class_names),
+                    process_metrics(train_metrics_vals, config.class_names),
                     step=example_ct,
                 )
 
@@ -171,7 +160,7 @@ def evaluate(
     loader: DataLoader,
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    metrics = _setup_metrics(len(config.class_names), stage="evaluation").to(device)
+    metrics = setup_metrics(len(config.class_names), stage="evaluation").to(device)
     metric_vals = _evaluate(
         model=model,
         comments_text=comments_text,
@@ -229,7 +218,7 @@ def _evaluate(
                 log_n_worst = losses.size(0)
             _, indices = torch.topk(losses, min(log_n_worst, losses.size(0)))
             predictions = torch.argmax(logits[indices], dim=1)
-            _log_sample_predictions(
+            log_sample_predictions(
                 [comments[i] for i in indices],
                 predictions,
                 labels[indices],
@@ -240,154 +229,4 @@ def _evaluate(
 
         metric_values = metrics.compute()
         metrics.reset()
-        return _process_metrics(metric_values, class_names)
-
-
-def _process_per_class_metric(metric_name, value, class_names):
-    result = {}
-    if isinstance(value, torch.Tensor) and len(value) == len(class_names):
-        stage, name = metric_name.split("/")
-        result.update(
-            {
-                f"{stage}/{cls}/{name}": val.item()
-                for cls, val in zip(class_names, value)
-            }
-        )
-        result[metric_name] = value.mean().item()
-    return result
-
-
-def _setup_metrics(num_classes: int, stage: str):
-    if num_classes == 2:
-        kwargs = {"task": "binary", "num_classes": 2}
-    else:
-        kwargs = {"task": "multilabel", "num_labels": num_classes}
-
-    if stage == "train":
-        metrics = {
-            "loss": MeanMetric(),
-            "f1": F1Score(average="none", **kwargs),
-            "precision": Precision(average="none", **kwargs),
-            "recall": Recall(average="none", **kwargs),
-        }
-    else:
-        metrics: dict[str, Metric] = {
-            "f1": F1Score(average="none", **kwargs),
-            "auprc": AveragePrecision(average="none", **kwargs),
-            "accuracy": Accuracy(average="macro", **kwargs),
-            "precision": Precision(average="none", **kwargs),
-            "recall": Recall(average="none", **kwargs),
-            "pr_curve": PrecisionRecallCurve(
-                thresholds=torch.arange(0, 1, 0.01), **kwargs
-            ),
-            "loss": MeanMetric(),
-        } | {
-            f"f1_{i}": F1Score(average="none", threshold=thr, **kwargs)
-            for i, thr in enumerate(np.arange(0, 1.01, 0.01))
-        }
-        if num_classes == 2:
-            metrics["calibration_error"] = CalibrationError(**kwargs)
-
-    return MetricCollection(metrics, prefix=f"{stage}/")
-
-
-def _process_pr_curve(metric_name: str, value: Any, class_names: list[str]):
-    stage, name = metric_name.split("/")
-    precision, recall, thresholds = value
-    if len(class_names) == 2:
-        table = wandb.Table(columns=["threshold", "precision", "recall"])
-        for t, p, r in zip(thresholds, precision, recall):
-            table.add_data(t, p, r)
-        return {
-            f"{stage}/{name}": wandb.plot.line(
-                table, "recall", "precision", title="Precision v. Recall"
-            )
-        }
-    else:
-        results = {}
-        for i, class_name in enumerate(class_names):
-            table = wandb.Table(columns=["threshold", "precision", "recall", "class"])
-            for t, p, r in zip(thresholds, precision[i], recall[i]):
-                table.add_data(t, p, r, class_name)
-            results[f"{stage}/{class_name}/{name}"] = wandb.plot.line(
-                table,
-                "recall",
-                "precision",
-                title=f"Precision v. Recall ({class_name})",
-            )
-        return results
-
-
-def _process_f1_curve(metrics: dict[str, Any], class_names: list[str]):
-    if len(class_names) == 2:
-        table = wandb.Table(columns=["threshold", "f1_value"])
-        stage = ""
-        log_table = False
-        for name, value in metrics.items():
-            if "f1_" in name:
-                log_table = True
-                stage, num = name.split("/f1_")
-                threshold = np.arange(0, 1.01, 0.01)[int(num)]
-                table.add_data(threshold, value.item())
-        if log_table:
-            return {
-                f"{stage}/f1_v_threshold": wandb.plot.line(
-                    table, "threshold", "f1_value", title=f"F1 v. Threshold"
-                )
-            }
-        else:
-            return {}
-    else:
-        tables = {}
-        stage = ""
-        for name, value in metrics.items():
-            if "f1_" in name:
-                stage, num = name.split("/f1_")
-                threshold = np.arange(0, 1.01, 0.01)[int(num)]
-                for val, class_name in zip(value, class_names):
-                    table = tables.setdefault(
-                        class_name, wandb.Table(columns=["threshold", "f1", "class"])
-                    )
-                    table.add_data(threshold, val.item(), class_name)
-
-        results = {}
-        for class_name, table in tables.items():
-            key = f"{stage}/{class_name}/f1_curve"
-            results[key] = wandb.plot.line(
-                tables[class_name],
-                "threshold",
-                "f1",
-                title=f"F1 v. Threshold ({class_name})",
-            )
-        return results
-
-
-def _process_metrics(metric_values: dict[str, Any], class_names: list[str]):
-    results = {}
-    for name, value in metric_values.items():
-        if "pr_curve" in name:
-            results.update(_process_pr_curve(name, value, class_names))
-        elif "f1_" in name:
-            pass
-        elif len(value.shape) == 0:
-            results[name] = value.item()
-        elif len(value.shape) == 1 and len(value) == len(class_names):
-            results.update(_process_per_class_metric(name, value, class_names))
-
-    results.update(_process_f1_curve(metric_values, class_names))
-
-    return results
-
-
-def _log_sample_predictions(
-    comments, predictions, true_labels, probabilities, class_names, stage
-):
-    table = wandb.Table(columns=["comment", "prediction", "target", *class_names])
-    for text, pred, targ, prob in zip(
-        comments,
-        predictions.to("cpu"),
-        true_labels.to("cpu"),
-        probabilities.to("cpu"),
-    ):
-        table.add_data(text, pred, targ, *prob.numpy())
-    wandb.log({f"{stage}/predictions_table": table}, commit=False)
+        return process_metrics(metric_values, class_names)
