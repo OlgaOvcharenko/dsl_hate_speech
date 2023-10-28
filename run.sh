@@ -18,5 +18,5 @@ echo
 source ".venv/bin/activate"
 
 export WANDB__SERVICE_WAIT=300
-python src/train_toxicity_baseline.py
-# python src/train_target_group_baseline.py
+# python src/train_toxicity_baseline.py
+python src/train_target_group_baseline.py

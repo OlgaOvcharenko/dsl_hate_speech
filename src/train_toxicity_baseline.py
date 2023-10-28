@@ -17,7 +17,8 @@ training_config = {
     "checkpoint_every_nth_epoch": 1,
     "log_n_worst": 100,
     "log_model_to_wandb": True,
-    "reweigh_loss": False,
+    "reweigh_loss": "effective_num",
+    "beta": 0.999,
 }
 
 model_config = {

@@ -17,7 +17,8 @@ training_config = {
     "checkpoint_every_nth_epoch": 1,
     "log_n_worst": 100,
     "log_model_to_wandb": True,
-    "reweigh_loss": True,
+    "reweigh_loss": "effective_num",
+    "beta": 0.999,
 }
 
 model_config = {
@@ -30,7 +31,7 @@ model_config = {
 data_config = {
     "train_data": "data/processed_comments_train_v1.csv",
     "evaluation_data": "data/processed_comments_evaluation_v1.csv",
-    "validation_split": 0.2,
+    "validation_split": 0.1,
 }
 
 wandb.init(

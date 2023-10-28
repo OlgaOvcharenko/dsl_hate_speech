@@ -20,14 +20,18 @@ def train_and_eval(model: torch.nn.modules.module.Module, config: wandb.Config):
     )
     val_loader = setup_loader(val_dataset, shuffle=False, batch_size=config.batch_size)
 
+    print(f"Starting training with {len(train_df)} examples...")
+
     class_weights = None
     if config.reweigh_loss is not None:
         if config.reweigh_loss == "effective_num":
-            class_weights = class_weights_eff_num(train_df, config.class_names)
+            class_weights = class_weights_eff_num(
+                train_df, config.class_names, config.beta
+            )
         elif config.reweigh_loss == "inverse_ratio":
             class_weights = class_weights_inverse_ratio(train_df, config.class_names)
 
-        print("Commencing training with class weights:")
+        print("Class weights:")
         for c, w in zip(config.class_names, class_weights):  # type: ignore
             print(f"\t{c}: {w}")
         print()
@@ -45,6 +49,7 @@ def train_and_eval(model: torch.nn.modules.module.Module, config: wandb.Config):
     eval_loader = setup_loader(
         eval_dataset, shuffle=False, batch_size=config.batch_size
     )
+    print(f"Starting evaluation with {len(eval_df)} examples...")
     evaluate(
         model=model,
         comments_text=eval_df["comment"],

@@ -79,11 +79,16 @@ def setup_datasets(config: wandb.Config, stage: str):
     tokenizer = _get_tokenizer(config.model_dir, config.base_model_id)
     if stage == "fit":
         df, comments, labels = _load_data(config.train_data, config.class_names)
+        if len(config.class_names) > 2:
+            # Only train on toxic comments
+            # TODO: Setup a separate Dataset class for this
+            indices = df["toxic"] == 1
+            comments = comments[indices]
+            labels = labels[indices, :]
         if config.debug_subset is not None:
             _, _, comments, labels = _split(
                 comments, labels, config, size=config.debug_subset
             )
-            print(f"Debugging on {len(comments)} examples")
 
         train_c, train_l, val_c, val_l = _split(comments, labels, config)
         train_dataset = CommentDataset(train_c, train_l, tokenizer)
@@ -96,7 +101,11 @@ def setup_datasets(config: wandb.Config, stage: str):
             _, _, comments, labels = _split(
                 comments, labels, config, size=config.debug_subset
             )
-            print(f"Testing on {len(comments)} examples")
+        if len(config.class_names) > 2:
+            # Only eval on toxic comments
+            indices = df["toxic"] == 1
+            comments = comments[indices]
+            labels = labels[indices, :]
         return df, CommentDataset(comments, labels, tokenizer)
 
 
@@ -104,7 +113,7 @@ def setup_loader(data: Dataset, batch_size: int, shuffle: bool):
     return DataLoader(data, batch_size=batch_size, shuffle=shuffle)
 
 
-def class_weights_eff_num(df: pr.DataFrame, class_names: list[str], beta=0.9999):
+def class_weights_eff_num(df: pr.DataFrame, class_names: list[str], beta: float):
     if len(class_names) == 2:
         class_counts = np.array(
             [len(df) - df[class_names[1]].sum(), df[class_names[1]].sum()]
