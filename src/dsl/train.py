@@ -104,7 +104,9 @@ def train(
             loss.backward()
             optimizer.step()
 
-            train_metrics_vals = train_metrics(value=loss)
+            train_metrics_vals = train_metrics(
+                value=loss, preds=outputs.logits, target=labels
+            )
 
             example_ct += labels.size(0)
             if step % 512 == 0:

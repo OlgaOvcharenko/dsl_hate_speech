@@ -13,7 +13,8 @@ training_config = {
     "epochs": 10,
     "batch_size": 16,
     "debug_subset": None,
-    "checkpoint_every_n": 1,
+    "log_every_nth_step": 512,
+    "checkpoint_every_nth_epoch": 1,
     "log_n_worst": 100,
     "log_model_to_wandb": False,
     "reweigh_loss": True,
@@ -36,7 +37,6 @@ wandb.init(
     project="toxicity-detection",
     config={
         "seed": 42,
-        "data_path": "./data/clean_comments_non-fr.csv",
         "class_names": ["non_noxic", "toxic"],
     }
     | data_config
