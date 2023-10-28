@@ -102,3 +102,26 @@ def setup_datasets(config: wandb.Config, stage: str):
 
 def setup_loader(data: Dataset, batch_size: int, shuffle: bool):
     return DataLoader(data, batch_size=batch_size, shuffle=shuffle)
+
+
+def class_weights_eff_num(df: pr.DataFrame, class_names: list[str], beta=0.9999):
+    if len(class_names) == 2:
+        class_counts = np.array(
+            [len(df) - df[class_names[1]].sum(), df[class_names[1]].sum()]
+        )
+    else:
+        class_counts = df.select(cs.by_name(class_names)).to_numpy().sum(axis=0)
+    effective_num = 1.0 - np.power(beta, class_counts)
+    weights = (1.0 - beta) / np.array(effective_num)
+    return torch.Tensor(weights / weights.sum() * len(class_names))
+
+
+def class_weights_inverse_ratio(df: pr.DataFrame, class_names: list[str]):
+    if len(class_names) == 2:
+        class_counts = np.array(
+            [len(df) - df[class_names[1]].sum(), df[class_names[1]].sum()]
+        )
+    else:
+        class_counts = df.select(cs.by_name(class_names)).to_numpy().sum(axis=0)
+    weights = 1 / class_counts
+    return torch.Tensor(weights / weights.sum() * len(class_names))

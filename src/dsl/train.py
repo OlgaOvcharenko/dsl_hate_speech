@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 import polars as pr
 import torch
@@ -11,27 +11,7 @@ import wandb
 from dsl.metrics import log_sample_predictions, process_metrics, setup_metrics
 
 
-def train(
-    model: torch.nn.Module,
-    config: wandb.Config,
-    comments_text: pr.Series,
-    train_loader: DataLoader,
-    val_loader: DataLoader,
-):
-    assert wandb.run is not None
-    wandb.watch(model, log="all", log_freq=1024)
-
-    checkpoint_path = Path(config.model_dir) / "checkpoints" / wandb.run.name
-    checkpoint_path.mkdir(parents=True, exist_ok=True)
-
-    # Default optimizer
-    optimizer = torch.optim.SGD(
-        model.parameters(),
-        lr=config.learning_rate,
-        momentum=config.momentum,
-        weight_decay=config.weight_decay,
-    )
-
+def _get_optimizer(config: wandb.Config, model: torch.nn.Module):
     if config.optimizer == "SGD":
         optimizer = torch.optim.SGD(
             model.parameters(),
@@ -39,9 +19,42 @@ def train(
             momentum=config.momentum,
             weight_decay=config.weight_decay,
         )
-    assert optimizer is not None
+    elif config.optimizer == "Adam":
+        optimizer = torch.optim.Adam(
+            model.parameters(),
+            lr=config.learning_rate,
+            weight_decay=config.weight_decay,
+        )
+    else:
+        raise ValueError(f"Unknown optimizer {config.optimizer}")
+    return optimizer
 
+
+def _get_loss(classes_num: int, class_weights: Optional[torch.Tensor] = None):
+    if classes_num == 2:
+        return torch.nn.CrossEntropyLoss(weight=class_weights, reduction="none")
+    else:
+        return torch.nn.BCEWithLogitsLoss(weight=class_weights, reduction="none")
+
+
+def train(
+    model: torch.nn.Module,
+    config: wandb.Config,
+    comments_text: pr.Series,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    class_weights: Optional[torch.Tensor] = None,
+):
+    assert wandb.run is not None
+    wandb.watch(model, log="all", log_freq=1024)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    checkpoint_path = Path(config.model_dir) / "checkpoints" / wandb.run.name
+    checkpoint_path.mkdir(parents=True, exist_ok=True)
+
+    # Default optimizer
+
+    optimizer = _get_optimizer(config, model)
     train_metrics = setup_metrics(len(config.class_names), stage="train").to(device)
     val_metrics = setup_metrics(len(config.class_names), stage="validation").to(device)
     model = model.to(device)
@@ -50,35 +63,7 @@ def train(
     model_best, model_latest = None, None
     best_val_loss = float("inf")
 
-    if config.reweigh_loss:
-        # TODO: Replace hand-coded class weights with computed ones
-        if len(config.class_names) == 2:
-            loss_fn = torch.nn.CrossEntropyLoss(
-                weight=torch.tensor([0.61230458, 2.726089]), reduction="none"
-            )
-        else:
-            loss_fn = torch.nn.BCEWithLogitsLoss(
-                weight=torch.tensor(
-                    [
-                        1.2195804195804196,
-                        4.298591549295774,
-                        5.482634730538922,
-                        3.760164271047228,
-                        0.4910041560530902,
-                        10.230167597765362,
-                        0.9755993606819393,
-                        0.2614319366121779,
-                        4.36,
-                        0.7780752071383047,
-                    ]
-                ),
-                reduction="none",
-            )
-    else:
-        if len(config.class_names) == 2:
-            loss_fn = torch.nn.CrossEntropyLoss(reduction="none")
-        else:
-            loss_fn = torch.nn.BCEWithLogitsLoss(reduction="none")
+    loss_fn = _get_loss(len(config.class_names), class_weights=class_weights)
     loss_fn = loss_fn.to(device)
 
     for epoch in range(config.epochs):
@@ -98,7 +83,7 @@ def train(
             train_metrics_vals = train_metrics(
                 value=loss,
                 preds=preds[:, 1] if len(config.class_names) == 2 else preds,
-                target=labels,
+                target=labels.long(),
             )
 
             example_ct += labels.size(0)
@@ -118,6 +103,7 @@ def train(
             loader=val_loader,
             log_examples=False,
             stage="validation",
+            loss_fn=loss_fn,
         )
         wandb.log(val_metrics_vals, step=example_ct)
 
@@ -158,6 +144,7 @@ def evaluate(
     comments_text: pr.Series,
     config: wandb.Config,
     loader: DataLoader,
+    class_weights: Optional[torch.Tensor] = None,
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     metrics = setup_metrics(len(config.class_names), stage="evaluation").to(device)
@@ -170,6 +157,7 @@ def evaluate(
         log_n_worst=config.log_n_worst,
         class_names=config.class_names,
         stage="evaluation",
+        loss_fn=_get_loss(len(config.class_names), class_weights),
     )
 
     wandb.log(metric_vals)
@@ -183,6 +171,7 @@ def _evaluate(
     log_examples: bool,
     class_names: list[str],
     stage: str,
+    loss_fn: Callable,
     log_n_worst: Optional[int] = None,
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -196,9 +185,10 @@ def _evaluate(
 
             outputs = model(input_ids=comments, labels=labels)
             logits = outputs.logits
+            loss = loss_fn(logits, labels)
             preds = logits.softmax(dim=1)
             metrics.update(
-                value=outputs.loss.item() * labels.size(0),
+                value=loss,
                 preds=preds[:, 1] if len(class_names) == 2 else preds,
                 target=labels.long(),
             )
@@ -212,11 +202,11 @@ def _evaluate(
             comments = [comment for batch in comments_batched for comment in batch]
             logits = torch.cat(logits_batched, dim=0)
             labels = torch.cat(labels_batched, dim=0)
-            losses = torch.nn.CrossEntropyLoss(reduction="none")(logits, labels)
+            losses = loss_fn(logits, labels)
 
             if log_n_worst is None:
                 log_n_worst = losses.size(0)
-            _, indices = torch.topk(losses, min(log_n_worst, losses.size(0)))
+            _, indices = torch.topk(losses, min(log_n_worst, losses.size(0)))  # type: ignore
             predictions = torch.argmax(logits[indices], dim=1)
             log_sample_predictions(
                 [comments[i] for i in indices],

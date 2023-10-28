@@ -14,16 +14,16 @@ training_config = {
     "batch_size": 16,
     "debug_subset": 0.0025,
     "log_every_nth_step": 1,
-    "checkpoint_every_nth_epoch": 1,
+    "checkpoint_every_nth_epoch": None,
     "log_n_worst": 100,
     "log_model_to_wandb": False,
-    "reweigh_loss": False,
+    "reweigh_loss": "inverse_ratio",
 }
 
 model_config = {
     "model_name": "toxicity-detection-test",
     "model_dir": "./models",
-    "base_model_id": "Hate-speech-CNERG/dehatebert-mono-german_labels=10",
+    "base_model_id": "Hate-speech-CNERG/dehatebert-mono-german_labels=2",
     "layers_to_freeze": list(range(11)),
 }
 
@@ -38,18 +38,19 @@ wandb.init(
     config={
         "seed": 42,
         "data_path": "./data/clean_comments_non-fr.csv",
-        "class_names": [
-            "gender",
-            "age",
-            "sexuality",
-            "religion",
-            "nationality",
-            "disability",
-            "social_status",
-            "political_views",
-            "appearance",
-            "other",
-        ],
+        "class_names": ["non_toxic", "toxic"]
+        # [
+        #     "gender",
+        #     "age",
+        #     "sexuality",
+        #     "religion",
+        #     "nationality",
+        #     "disability",
+        #     "social_status",
+        #     "political_views",
+        #     "appearance",
+        #     "other",
+        # ],
     }
     | data_config
     | optimizer_config
@@ -57,5 +58,5 @@ wandb.init(
     | model_config,
 )
 
-model = MultiLabelModule(wandb.config)
+model = MultiClassModule(wandb.config)
 train_and_eval(model, wandb.config)
