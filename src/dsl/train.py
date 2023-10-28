@@ -101,7 +101,7 @@ def train(
             outputs = model(input_ids=comments, labels=labels)
             optimizer.zero_grad()
             loss = loss_fn(outputs.logits, labels)
-            loss.backward()
+            loss.sum().backward()
             optimizer.step()
 
             train_metrics_vals = train_metrics(
