@@ -29,6 +29,7 @@ def setup_metrics(num_classes: int, stage: str):
         metrics = {
             "loss": MeanMetric(),
             "f1": F1Score(average="none", **kwargs),
+            "auprc": AveragePrecision(average="none", **kwargs),
             "precision": Precision(average="none", **kwargs),
             "recall": Recall(average="none", **kwargs),
         }

@@ -10,14 +10,14 @@ optimizer_config = {
 }
 
 training_config = {
-    "epochs": 10,
+    "epochs": 15,
     "batch_size": 16,
     "debug_subset": None,
     "log_every_nth_step": 512,
     "checkpoint_every_nth_epoch": 1,
     "log_n_worst": 100,
-    "log_model_to_wandb": False,
-    "reweigh_loss": True,
+    "log_model_to_wandb": True,
+    "reweigh_loss": False,
 }
 
 model_config = {
@@ -30,7 +30,7 @@ model_config = {
 data_config = {
     "train_data": "data/processed_comments_train_v1.csv",
     "evaluation_data": "data/processed_comments_evaluation_v1.csv",
-    "validation_split": 0.2,
+    "validation_split": 0.1,
 }
 
 wandb.init(
