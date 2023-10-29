@@ -9,4 +9,4 @@ declare -a models=("Hate-speech-CNERG/dehatebert-mono-german"  "statworx/bert-ba
 
 python3 load_models.py 
 
-# scp -r models $username@euler.ethz.ch:$path_on_euler
+scp -r models $username@euler.ethz.ch:$path_on_euler

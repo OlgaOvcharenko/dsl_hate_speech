@@ -335,6 +335,7 @@ def test(
         logits, labels
     )
 
+    print(logits.numpy())
     np.savetxt(
         config.logits_path + '/' + config.base_model_id, logits.numpy(),  
         delimiter=',', newline='\n', header='', footer='', comments=''

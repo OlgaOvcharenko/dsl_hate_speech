@@ -8,4 +8,5 @@ declare -a models=("Hate-speech-CNERG/dehatebert-mono-german"  "statworx/bert-ba
 for value in "${models[@]}"
 do
   sbatch run.sh $value
+  # bash run.sh $value
 done

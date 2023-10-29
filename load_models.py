@@ -1,5 +1,6 @@
 import argparse
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
+import sys
 
 
 def save_model_local(model_id: str, model_path: str, tokenizer_path, num_labels=2):
@@ -17,9 +18,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('models', nargs='+')
     args = parser.parse_args()
-    if args:
-        print(args)
-    else: 
-        print("Hate-speech-CNERG/dehatebert-mono-german")
-    # load_models(args.models)
+    load_models(args.models)
     

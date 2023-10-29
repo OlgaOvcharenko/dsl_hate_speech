@@ -1,4 +1,4 @@
-import argparse
+import sys
 import os
 import random
 
@@ -15,10 +15,6 @@ from baseline import (
     train,
 )
 
-parser = argparse.ArgumentParser()
-parser.add_argument('model', nargs='+')
-args = parser.parse_args()
-
 wandb.init(
     project="toxicity-detection-baseline",
     config={
@@ -29,12 +25,12 @@ wandb.init(
         "weight_decay": 1e-5,
         "data_path": "./data/clean_comments_non-fr.csv",
         "model_dir": "./models",
-        "base_model_id": args.model if args else "Hate-speech-CNERG/dehatebert-mono-german",
+        "base_model_id": sys.argv[1] if len(sys.argv) == 2 else "Hate-speech-CNERG/dehatebert-mono-german",
         "logits_path": "results/",
         "model_name": "toxicity-baseline",
         "epochs": 10,
         "batch_size": 16,
-        "debug_subset": None,
+        "debug_subset": 100,
         "checkpoint_every_n": 3,
         "log_n_worst": 100,
         "log_model_to_wandb": True,
