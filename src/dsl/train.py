@@ -52,7 +52,7 @@ def train(
     class_weights: Optional[torch.Tensor] = None,
 ):
     assert wandb.run is not None
-    wandb.watch(model, log="all", log_freq=1024)
+    # wandb.watch(model, log="all", log_freq=1024)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     checkpoint_path = Path(config.model_dir) / "checkpoints" / wandb.run.name
