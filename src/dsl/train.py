@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -17,19 +18,28 @@ from dsl.metrics import (
 )
 
 
+def _get_device():
+    return torch.device(
+        "cuda"
+        if torch.cuda.is_available()
+        else "mps"
+        if torch.backends.mps.is_available()
+        else "cpu"
+    )
+
+
 def _get_optimizer(config: wandb.Config, model: torch.nn.Module):
-    if config.optimizer == "SGD":
+    if config.optimizer == "sgd":
         optimizer = torch.optim.SGD(
             model.parameters(),
             lr=config.learning_rate,
             momentum=config.momentum,
-            weight_decay=config.weight_decay,
+            nesterov=config.nesterov,
         )
-    elif config.optimizer == "Adam":
+    elif config.optimizer == "adam":
         optimizer = torch.optim.Adam(
             model.parameters(),
             lr=config.learning_rate,
-            weight_decay=config.weight_decay,
         )
     else:
         raise ValueError(f"Unknown optimizer {config.optimizer}")
@@ -53,9 +63,9 @@ def train(
 ):
     assert wandb.run is not None
     # wandb.watch(model, log="all", log_freq=1024)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = _get_device()
 
-    checkpoint_path = Path(config.model_dir) / "checkpoints" / wandb.run.name
+    checkpoint_path = Path(config.model_directory) / "checkpoints" / wandb.run.name
     checkpoint_path.mkdir(parents=True, exist_ok=True)
 
     optimizer = _get_optimizer(config, model)
@@ -70,6 +80,7 @@ def train(
     loss_fn = _get_loss(len(config.class_names), class_weights=class_weights)
     loss_fn = loss_fn.to(device)
 
+    start_time = time.time()
     for epoch in range(config.epochs):
         model.train()
 
@@ -90,11 +101,10 @@ def train(
             )
 
             example_ct += labels.size(0)
-            if step % config.log_every_nth_step == 0:
-                wandb.log(
-                    process_metrics(train_metrics_vals, config.class_names),
-                    step=example_ct,
-                )
+            if (step + 1) % config.logging_period == 0:
+                metrics = {"throughput": example_ct / (time.time() - start_time)}
+                metrics.update(process_metrics(train_metrics_vals, config.class_names))
+                wandb.log(metrics, step=example_ct)
 
         train_metrics.reset()
 
@@ -123,22 +133,19 @@ def train(
             "optimizer": optimizer.state_dict(),
         }
 
-        if (
-            config.checkpoint_every_nth_epoch is not None
-            and epoch % config.checkpoint_every_nth_epoch == 0
-        ):
+        if config.create_checkpoints and (epoch + 1) % config.checkpoint_period == 0:
             torch.save(
                 model_latest,
-                checkpoint_path / f"{config.model_name}_epoch={epoch}.ckpt",
+                checkpoint_path / f"{config.model}_epoch={epoch}.ckpt",
             )
 
-    torch.save(model_latest, checkpoint_path / f"{config.model_name}_latest.ckpt")
-    torch.save(model_best, checkpoint_path / f"{config.model_name}_best.ckpt")
+    torch.save(model_latest, checkpoint_path / f"{config.model}_latest.ckpt")
+    torch.save(model_best, checkpoint_path / f"{config.model}_best.ckpt")
     if config.log_model_to_wandb:
         model_artifact = wandb.Artifact(
-            config.model_name, type="model", metadata=dict(config)
+            config.model, type="model", metadata=dict(config)
         )
-        model_artifact.add_file(checkpoint_path / f"{config.model_name}_best.ckpt")
+        model_artifact.add_file(checkpoint_path / f"{config.model}_best.ckpt")
         wandb.log_artifact(model_artifact, aliases=["best", "latest"])
 
 
@@ -149,15 +156,15 @@ def evaluate(
     loader: DataLoader,
     class_weights: Optional[torch.Tensor] = None,
 ):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = _get_device()
     metrics = setup_metrics(len(config.class_names), stage="evaluation").to(device)
     metric_vals = _evaluate(
         model=model,
         comments_text=comments_text,
         metrics=metrics,
         loader=loader,
-        log_examples=True,
-        log_n_worst=config.log_n_worst,
+        log_examples="evaluation" in config.log_hardest_examples,
+        examples_to_log=config.examples_to_log,
         class_names=config.class_names,
         stage="evaluation",
         loss_fn=_get_loss(len(config.class_names), class_weights),
@@ -175,11 +182,11 @@ def _evaluate(
     class_names: list[str],
     stage: str,
     loss_fn: Callable,
-    log_n_worst: Optional[int] = None,
+    examples_to_log: Optional[int] = None,
 ):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = _get_device()
     model.eval()
-    f1_curve = setup_f1_curve(num_labels=len(class_names), stage=stage)
+    f1_curve = setup_f1_curve(num_labels=len(class_names), stage=stage).to(device)
 
     with torch.inference_mode():
         comments_batched, logits_batched, labels_batched = [], [], []
@@ -214,10 +221,10 @@ def _evaluate(
             if len(class_names) > 2:
                 losses = losses.median(dim=1).values
 
-            if log_n_worst is None:
-                log_n_worst = losses.size(0)
+            if examples_to_log is None:
+                examples_to_log = losses.size(0)
             _, indices = torch.topk(
-                losses, min(log_n_worst, losses.size(0))  # type: ignore
+                losses, min(examples_to_log, losses.size(0))  # type: ignore
             )
             predictions = torch.argmax(logits[indices], dim=1)
             log_sample_predictions(

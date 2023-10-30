@@ -13,4 +13,4 @@ mkdir -p logs
 source ".venv/bin/activate"
 
 export WANDB__SERVICE_WAIT=300
-python "$1"
+wandb agent --count 1 "$1"

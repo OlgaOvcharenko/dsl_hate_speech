@@ -1,0 +1,27 @@
+# DATA
+train_data: "data/processed_comments_train_v1.csv"
+evaluation_data: "data/processed_comments_evaluation_v1.csv"
+dataset_portion: 1
+
+# OPTIMIZER
+optimizer: "adam"
+learning_rate: 3.0e-5
+
+# MODEL
+model_directory: "./models"
+
+# TRAINING
+seed: 42
+validation_split: 0.1
+batch_size: 16
+create_checkpoints: True
+checkpoint_period: 1
+
+# WANDB logging
+logging_period: 512
+log_hardest_examples: ["evaluation"]
+examples_to_log: 100
+log_model_to_wandb: False
+
+# LOSS
+class_weight: "unchanged"

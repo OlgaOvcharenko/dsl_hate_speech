@@ -3,11 +3,12 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 def save_model_local(
     model_id,
-    model_path,
-    tokenizer_path,
     num_labels=2,
     problem_type="single_label_classification",
+    model_dir="models",
 ):
+    model_path = f"{model_dir}/{model_id}_model"
+    tokenizer_path = f"{model_dir}/{model_id}_tokenizer"
     AutoModelForSequenceClassification.from_pretrained(
         model_id,
         num_labels=num_labels,
@@ -17,10 +18,4 @@ def save_model_local(
     AutoTokenizer.from_pretrained(model_id).save_pretrained(tokenizer_path)
 
 
-# save_model_local(
-#     model_id="Hate-speech-CNERG/dehatebert-mono-german",
-#     model_path="models/Hate-speech-CNERG/dehatebert-mono-german_multilabel_model",
-#     tokenizer_path="models/Hate-speech-CNERG/dehatebert-mono-german_multilabel_tokenizer",
-#     num_labels=10,
-#     problem_type="multi_label_classification",
-# )
+save_model_local(model_id="xlm-roberta-large")
