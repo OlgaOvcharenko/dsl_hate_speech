@@ -3,12 +3,18 @@ from typing import Callable, Optional
 
 import polars as pr
 import torch
+import torch.nn.functional as F
 import wandb.plot
 from torch.utils.data import DataLoader
 from torchmetrics import MetricCollection
 
 import wandb
-from dsl.metrics import log_sample_predictions, process_metrics, setup_metrics
+from dsl.metrics import (
+    log_sample_predictions,
+    process_metrics,
+    setup_f1_curve,
+    setup_metrics,
+)
 
 
 def _get_optimizer(config: wandb.Config, model: torch.nn.Module):
@@ -52,8 +58,6 @@ def train(
     checkpoint_path = Path(config.model_dir) / "checkpoints" / wandb.run.name
     checkpoint_path.mkdir(parents=True, exist_ok=True)
 
-    # Default optimizer
-
     optimizer = _get_optimizer(config, model)
     train_metrics = setup_metrics(len(config.class_names), stage="train").to(device)
     val_metrics = setup_metrics(len(config.class_names), stage="validation").to(device)
@@ -79,10 +83,9 @@ def train(
             loss.mean().backward()
             optimizer.step()
 
-            preds = outputs.logits.softmax(dim=1)
             train_metrics_vals = train_metrics(
                 value=loss,
-                preds=preds[:, 1] if len(config.class_names) == 2 else preds,
+                preds=outputs.logits.softmax(dim=1),
                 target=labels.long(),
             )
 
@@ -176,6 +179,7 @@ def _evaluate(
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.eval()
+    f1_curve = setup_f1_curve(num_labels=len(class_names), stage=stage)
 
     with torch.inference_mode():
         comments_batched, logits_batched, labels_batched = [], [], []
@@ -186,11 +190,15 @@ def _evaluate(
             outputs = model(input_ids=comments, labels=labels)
             logits = outputs.logits
             loss = loss_fn(logits, labels)
-            preds = logits.softmax(dim=1)
+
             metrics.update(
-                value=loss,
-                preds=preds[:, 1] if len(class_names) == 2 else preds,
-                target=labels.long(),
+                value=loss, preds=logits.softmax(dim=1), target=labels.long()
+            )
+            f1_curve.update(
+                preds=logits.softmax(dim=1),
+                target=labels.long()
+                if len(class_names) > 2
+                else F.one_hot(labels, num_classes=2),
             )
 
             if log_examples:
@@ -203,22 +211,26 @@ def _evaluate(
             logits = torch.cat(logits_batched, dim=0)
             labels = torch.cat(labels_batched, dim=0)
             losses = loss_fn(logits, labels)
+            if len(class_names) > 2:
+                losses = losses.median(dim=1).values
 
             if log_n_worst is None:
                 log_n_worst = losses.size(0)
             _, indices = torch.topk(
-                losses.median(dim=1).values, min(log_n_worst, losses.size(0))
-            )  # type: ignore
+                losses, min(log_n_worst, losses.size(0))  # type: ignore
+            )
             predictions = torch.argmax(logits[indices], dim=1)
             log_sample_predictions(
-                [comments[i] for i in indices],
-                predictions,
-                labels[indices],
-                logits.softmax(dim=1),
-                class_names,
+                comments=[comments[i] for i in indices],
+                predictions=predictions,
+                true_labels=labels[indices],
+                probabilities=logits.softmax(dim=1),
+                class_names=class_names,
                 stage=stage,
             )
 
         metric_values = metrics.compute()
+        metric_values.update(f1_curve.compute())
+        f1_curve.reset()
         metrics.reset()
         return process_metrics(metric_values, class_names)
