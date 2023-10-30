@@ -206,7 +206,9 @@ def _evaluate(
 
             if log_n_worst is None:
                 log_n_worst = losses.size(0)
-            _, indices = torch.topk(losses, min(log_n_worst, losses.size(0)))  # type: ignore
+            _, indices = torch.topk(
+                losses.median(dim=1).values, min(log_n_worst, losses.size(0))
+            )  # type: ignore
             predictions = torch.argmax(logits[indices], dim=1)
             log_sample_predictions(
                 [comments[i] for i in indices],

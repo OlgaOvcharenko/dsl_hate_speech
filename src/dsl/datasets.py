@@ -97,15 +97,15 @@ def setup_datasets(config: wandb.Config, stage: str):
         return df, train_dataset, val_dataset
     elif stage == "test":
         df, comments, labels = _load_data(config.evaluation_data, config.class_names)
-        if config.debug_subset is not None:
-            _, _, comments, labels = _split(
-                comments, labels, config, size=config.debug_subset
-            )
         if len(config.class_names) > 2:
             # Only eval on toxic comments
             indices = df["toxic"] == 1
             comments = comments[indices]
             labels = labels[indices, :]
+        if config.debug_subset is not None:
+            _, _, comments, labels = _split(
+                comments, labels, config, size=config.debug_subset
+            )
         return df, CommentDataset(comments, labels, tokenizer)
 
 
