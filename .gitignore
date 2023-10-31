@@ -173,3 +173,4 @@ models/
 copy_model.sh
 
 .idea
+.vscode
