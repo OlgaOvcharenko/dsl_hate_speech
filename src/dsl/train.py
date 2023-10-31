@@ -13,7 +13,7 @@ import wandb
 from dsl.metrics import (
     log_sample_predictions,
     process_metrics,
-    setup_f1_curve,
+    setup_macro_f1,
     setup_metrics,
 )
 
@@ -94,15 +94,16 @@ def train(
             loss.mean().backward()
             optimizer.step()
 
+            preds = outputs.logits.softmax(dim=1)
             train_metrics_vals = train_metrics(
                 value=loss,
-                preds=outputs.logits.softmax(dim=1),
+                preds=preds[:, 1] if len(config.class_names) > 1 else preds,
                 target=labels.long(),
             )
 
             example_ct += labels.size(0)
             if (step + 1) % config.logging_period == 0:
-                metrics = {"throughput": example_ct / (time.time() - start_time)}
+                metrics = {"train/throughput": example_ct / (time.time() - start_time)}
                 metrics.update(process_metrics(train_metrics_vals, config.class_names))
                 wandb.log(metrics, step=example_ct)
 
@@ -186,7 +187,9 @@ def _evaluate(
 ):
     device = _get_device()
     model.eval()
-    f1_curve = setup_f1_curve(num_labels=len(class_names), stage=stage).to(device)
+    # f1_curve = setup_f1_curve(num_labels=len(class_names), stage=stage).to(device)
+    if stage == "evaluation":
+        macro_f1 = setup_macro_f1(stage=stage).to(device)
 
     with torch.inference_mode():
         comments_batched, logits_batched, labels_batched = [], [], []
@@ -198,15 +201,20 @@ def _evaluate(
             logits = outputs.logits
             loss = loss_fn(logits, labels)
 
+            preds = logits.softmax(dim=1)
             metrics.update(
-                value=loss, preds=logits.softmax(dim=1), target=labels.long()
+                value=loss,
+                preds=preds[:, 1] if len(class_names) > 1 else preds,
+                target=labels.long(),
             )
-            f1_curve.update(
-                preds=logits.softmax(dim=1),
-                target=labels.long()
-                if len(class_names) > 2
-                else F.one_hot(labels, num_classes=2),
-            )
+            if stage == "evaluation":
+                macro_f1.update(preds=preds, target=labels.long())
+            # f1_curve.update(
+            #     preds=logits.softmax(dim=1),
+            #     target=labels.long()
+            #     if len(class_names) > 2
+            #     else F.one_hot(labels, num_classes=2),
+            # )
 
             if log_examples:
                 comments_batched.append(comments_text[idx.tolist()])
@@ -237,7 +245,10 @@ def _evaluate(
             )
 
         metric_values = metrics.compute()
-        metric_values.update(f1_curve.compute())
-        f1_curve.reset()
+        if stage == "evaluation":
+            metric_values.update(macro_f1.compute())
+            macro_f1.reset()
+        # metric_values.update(f1_curve.compute())
+        # f1_curve.reset()
         metrics.reset()
         return process_metrics(metric_values, class_names)
