@@ -5,9 +5,10 @@
 #SBATCH --gpus=rtx_3090:1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=32G
-#SBATCH --time=8:00:00
+#SBATCH --time=1:00:00
 
 mkdir -p logs
+mkdir -p results
 
 module load eth_proxy gcc/8.2.0 python_gpu/3.11.2
 
