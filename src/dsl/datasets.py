@@ -79,7 +79,7 @@ def setup_datasets(config: wandb.Config, stage: str):
     tokenizer = _get_tokenizer(config.model_dir, config.base_model_id)
     if stage == "fit":
         df, comments, labels = _load_data(config.train_data, config.class_names)
-        if len(config.class_names) > 2:
+        if len(config.class_names) > 2 or (len(config.class_names) == 2 and 'toxic' not in config.class_names):
             # Only train on toxic comments
             # TODO: Setup a separate Dataset class for this
             indices = df["toxic"] == 1
@@ -97,7 +97,7 @@ def setup_datasets(config: wandb.Config, stage: str):
         return df, train_dataset, val_dataset
     elif stage == "test":
         df, comments, labels = _load_data(config.evaluation_data, config.class_names)
-        if len(config.class_names) > 2:
+        if len(config.class_names) > 2 or (len(config.class_names) == 2 and 'toxic' not in config.class_names):
             # Only eval on toxic comments
             indices = df["toxic"] == 1
             comments = comments[indices]
