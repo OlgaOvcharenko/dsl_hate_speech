@@ -25,8 +25,8 @@ training_config = {
 
 model_config = {
     "model_name": "toxicity-detection-baseline",
-    "model_dir": f"/cluster/scratch/{user}/models",
-    "base_model_id": "Hate-speech-CNERG/dehatebert-mono-german_labels_model",
+    "model_dir": f"/cluster/scratch/{user}/dsl_hate_speech/models",
+    "base_model_id": "Hate-speech-CNERG/dehatebert-mono-german_model",
     "layers_to_freeze": list(range(11)),
 }
 
