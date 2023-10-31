@@ -2,6 +2,8 @@ import wandb
 from dsl.models import MultiClassModule
 from dsl.runner import train_and_eval
 
+user = "oovcharenko" if True else "ewybitul"
+
 optimizer_config = {
     "optimizer": "SGD",
     "learning_rate": 1e-4,
@@ -23,7 +25,7 @@ training_config = {
 
 model_config = {
     "model_name": "toxicity-detection-baseline",
-    "model_dir": "/cluster/scratch/ewybitul/models",
+    "model_dir": f"/cluster/scratch/{user}/models",
     "base_model_id": "Hate-speech-CNERG/dehatebert-mono-german_labels=2",
     "layers_to_freeze": list(range(11)),
 }
