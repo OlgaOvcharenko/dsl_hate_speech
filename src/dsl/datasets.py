@@ -28,9 +28,9 @@ class CommentDataset(Dataset):
     def __len__(self):
         return len(self.comments)
 
-    def _preprocess(self, comments: list, lowercase: bool = False):
+    def _preprocess(self, comments: list, lowercase: bool = False, tweet_clean: bool = False):
         def _preprocess_val(val: str):
-            val = p.clean(val).lower() if lowercase else p.clean(val)
+            val = (p.clean(val).lower() if lowercase else p.clean(val)) if tweet_clean else val
             return val.replace("ü", "ue").replace("ä", "ae").replace("ö", "oe")
 
         p.set_options(p.OPT.URL, p.OPT.MENTION, p.OPT.NUMBER, p.OPT.EMOJI, p.OPT.SMILEY)
