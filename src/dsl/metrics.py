@@ -109,7 +109,7 @@ def _process_pr_curve(metric_name: str, value: Any, class_names: list[str]):
     if len(class_names) == 2:
         table = wandb.Table(columns=["threshold", "precision", "recall", "f1"])
         for t, p, r in zip(thresholds, precision, recall):
-            f1 = (p * r) / (p + r + 1e-20)
+            f1 = 2 * (p * r) / (p + r + 1e-20)
             table.add_data(t.item(), p.item(), r.item(), f1.item())
         return {f"{stage}/pr_table": table}
     return {}
