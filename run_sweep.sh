@@ -30,5 +30,5 @@ count=$((${count:-1}))
 echo "Preparing $count agent(s) to run the sweep "
 for ((i = 1; i <= count; i++)); do
     echo "Starting agent $i..."
-    sbatch run_agent.sh "$sweep"
+    sbatch -A s_stud_infk run_agent.sh "$sweep"
 done

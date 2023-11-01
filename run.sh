@@ -2,8 +2,7 @@
 
 #SBATCH --output=logs/log-%j.out
 #SBATCH --nodes=1
-#SBATCH --gpus=1
-#SBATCH --gres=gpumem:15g
+#SBATCH --gpus=rtx_2080_ti:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=8G
 #SBATCH --time=4:00:00
