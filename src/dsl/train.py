@@ -191,6 +191,8 @@ def _evaluate(
             logits = outputs.logits
             loss = loss_fn(logits, labels)
 
+            metrics.to(device)
+
             metrics.update(
                 value=loss, preds=logits.softmax(dim=1), target=labels.long()
             )
