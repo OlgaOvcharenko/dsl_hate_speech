@@ -40,7 +40,7 @@ wandb.init(
     project="toxicity-detection",
     config={
         "seed": 42,
-        "class_names": ["non_nationality", "nationality"],
+        "class_names": ["non_political_views", "political_views"],
     }
     | data_config
     | optimizer_config

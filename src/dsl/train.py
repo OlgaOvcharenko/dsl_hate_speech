@@ -196,8 +196,10 @@ def _evaluate(
             metrics.update(
                 value=loss, preds=logits.softmax(dim=1), target=labels.long()
             )
+
             logits.to(device)
             f1_curve.to(device)
+
             f1_curve.update(
                 preds=logits.softmax(dim=1),
                 target=labels.long()
