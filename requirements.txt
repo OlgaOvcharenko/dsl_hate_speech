@@ -36,6 +36,7 @@ torch
 torchmetrics
 tqdm
 transformers
+tweet-preprocessor
 typing_extensions
 tzdata
 urllib3

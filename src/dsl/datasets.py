@@ -3,8 +3,8 @@ from typing import Callable, Optional
 import numpy as np
 import polars as pr
 import polars.selectors as cs
+import preprocessor as p
 import torch
-import wandb.plot
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from sklearn.model_selection import StratifiedShuffleSplit
 from torch.utils.data import DataLoader, Dataset
@@ -21,20 +21,26 @@ def _get_tokenizer(model_directory: str, model_id: str, local_files=True):
 
 class CommentDataset(Dataset):
     def __init__(self, comments: np.ndarray, labels: torch.Tensor, tokenizer: Callable):
-        self.comments = self._normalize(comments)
+        self.comments = self._preprocess(comments)
         self.labels = labels
         self.tokenizer = tokenizer
 
     def __len__(self):
         return len(self.comments)
 
-    def _normalize(self, comments):
-        return np.array(
-            [
-                c.replace("ü", "ue").replace("ä", "ae").replace("ö", "oe")
-                for c in comments
-            ]
-        )
+    def _preprocess(
+        self, comments: list, lowercase: bool = False, tweet_clean: bool = False
+    ):
+        def _preprocess_val(val: str):
+            val = (
+                (p.clean(val).lower() if lowercase else p.clean(val))
+                if tweet_clean
+                else val
+            )
+            return val.replace("ü", "ue").replace("ä", "ae").replace("ö", "oe")
+
+        p.set_options(p.OPT.URL, p.OPT.MENTION, p.OPT.NUMBER, p.OPT.EMOJI, p.OPT.SMILEY)
+        return np.array([_preprocess_val(str(comment)) for comment in comments])
 
     def _tokenize(self, comments):
         return self.tokenizer(
