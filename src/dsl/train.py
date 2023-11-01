@@ -1,7 +1,8 @@
 from pathlib import Path
 from typing import Callable, Optional
 
-import polars as pr
+# import polars as pr
+import pandas as pr
 import torch
 import torch.nn.functional as F
 import wandb.plot

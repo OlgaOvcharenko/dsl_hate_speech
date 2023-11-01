@@ -23,9 +23,7 @@ export WANDB__SERVICE_WAIT=300
 
 if [ "$run_toxicity" == true ]
 then
-  echo "Hi"
   python src/train_toxicity_baseline.py
 else
-  echo "Ni"
   python src/train_target_group_baseline.py
 fi

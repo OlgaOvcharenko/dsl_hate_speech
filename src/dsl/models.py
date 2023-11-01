@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import torch
-import wandb.plot
 from transformers import AutoModelForSequenceClassification
 
 import wandb

@@ -1,10 +1,11 @@
 from typing import Callable, Optional
 
 import numpy as np
-import polars as pr
-import polars.selectors as cs
+# import polars as pr
+# import polars.selectors as cs
 import torch
 import wandb.plot
+import pandas as pr
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from sklearn.model_selection import StratifiedShuffleSplit
 from torch.utils.data import DataLoader, Dataset
@@ -52,9 +53,9 @@ class CommentDataset(Dataset):
 def _load_data(path: str, class_names: list[str]):
     df = pr.read_csv(path)
     if len(class_names) == 2:
-        cols = df.select(cs.by_name(class_names[1]))
+        cols = df.select(class_names[1])
     else:
-        cols = df.select(cs.by_name(class_names))
+        cols = df.select(class_names)
     labels = torch.tensor(cols.to_numpy())
     return df, df["comment"].to_numpy(), labels
 
@@ -119,7 +120,7 @@ def class_weights_eff_num(df: pr.DataFrame, class_names: list[str], beta: float)
             [len(df) - df[class_names[1]].sum(), df[class_names[1]].sum()]
         )
     else:
-        class_counts = df.select(cs.by_name(class_names)).to_numpy().sum(axis=0)
+        class_counts = df.select(class_names).to_numpy().sum(axis=0)
     effective_num = 1.0 - np.power(beta, class_counts)
     weights = (1.0 - beta) / np.array(effective_num)
     return torch.Tensor(weights / weights.sum() * len(class_names))
@@ -131,6 +132,6 @@ def class_weights_inverse_ratio(df: pr.DataFrame, class_names: list[str]):
             [len(df) - df[class_names[1]].sum(), df[class_names[1]].sum()]
         )
     else:
-        class_counts = df.select(cs.by_name(class_names)).to_numpy().sum(axis=0)
+        class_counts = df.select(class_names).to_numpy().sum(axis=0)
     weights = 1 / class_counts
     return torch.Tensor(weights / weights.sum() * len(class_names))
