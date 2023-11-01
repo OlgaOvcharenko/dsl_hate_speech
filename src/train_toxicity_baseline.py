@@ -1,50 +1,26 @@
+import yaml
+
 import wandb
-from dsl.models import MultiClassModule
+from dsl.models import MultiClassAdapterModule
 from dsl.runner import train_and_eval
 
-optimizer_config = {
-    "optimizer": "SGD",
-    "learning_rate": 1e-4,
-    "momentum": 0.9,
-    "weight_decay": 1e-5,
-}
+config = {}
+with open("configs/defaults.yaml") as f:
+    base_config = yaml.load(f, Loader=yaml.FullLoader)
+    config.update(base_config)
+with open("configs/toxicity/defaults.yaml") as f:
+    toxicity_config = yaml.load(f, Loader=yaml.FullLoader)
+    config.update(toxicity_config)
 
-training_config = {
-    "epochs": 15,
-    "batch_size": 16,
-    "dataset_portion": None,
-    "logging_period": 512,
-    "checkpoint_period": 1,
-    "examples_to_log": 100,
-    "log_model_to_wandb": True,
-    "class_weight": "effective_num",
-    "beta": 0.999,
-}
-
-model_config = {
-    "model_name": "toxicity-detection-baseline",
-    "model_directory": "/cluster/scratch/ewybitul/models",
-    "model": "Hate-speech-CNERG/dehatebert-mono-german_labels=2",
-    "layers_to_freeze": list(range(11)),
-}
-
-data_config = {
-    "train_data": "data/processed_comments_train_v1.csv",
-    "evaluation_data": "data/processed_comments_evaluation_v1.csv",
-    "validation_split": 0.1,
-}
-
-wandb.init(
-    project="toxicity-detection",
-    config={
-        "seed": 42,
-        "class_names": ["non_noxic", "toxic"],
+config.update(
+    {
+        "model_directory": "/cluster/scratch/ewybitul/models",
+        "base_model": "Hate-speech-CNERG/dehatebert-mono-german_labels=2",
+        "model": "toxicity-detection-baseline",
+        "epochs": 5,
     }
-    | data_config
-    | optimizer_config
-    | training_config
-    | model_config,
 )
 
-model = MultiClassModule(wandb.config)
+wandb.init(project="toxicity-detection", config=config)
+model = MultiClassAdapterModule(wandb.config)
 train_and_eval(model, wandb.config)
