@@ -27,5 +27,5 @@ then
   python src/train_toxicity_baseline.py
 else
   echo "Ni"
-  python src/train_target_group_baseline.py
+  python src/train_binary_target_baseline.py
 fi
