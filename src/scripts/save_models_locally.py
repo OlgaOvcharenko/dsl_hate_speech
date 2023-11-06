@@ -17,10 +17,9 @@ def save_model_local(
     AutoTokenizer.from_pretrained(model_id).save_pretrained(tokenizer_path)
 
 
-# save_model_local(
-#     model_id="Hate-speech-CNERG/dehatebert-mono-german",
-#     model_path="models/Hate-speech-CNERG/dehatebert-mono-german_multilabel_model",
-#     tokenizer_path="models/Hate-speech-CNERG/dehatebert-mono-german_multilabel_tokenizer",
-#     num_labels=10,
-#     problem_type="multi_label_classification",
-# )
+save_model_local(
+    model_id="bert-base-german-cased",
+    model_path="models/bert-base-german-cased_model",
+    tokenizer_path="models/bert-base-german-cased_tokenizer",
+    num_labels=2,
+)

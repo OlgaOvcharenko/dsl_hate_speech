@@ -56,7 +56,7 @@ def _load_data(path: str, class_names: list[str]):
     else:
         cols = df.select(cs.by_name(class_names))
     labels = torch.tensor(cols.to_numpy())
-    return df, df["comment"].to_numpy(), labels
+    return df, df["comment_preprocessed_legacy"].to_numpy(), labels
 
 
 def _split(comments, labels, config, size=None):
