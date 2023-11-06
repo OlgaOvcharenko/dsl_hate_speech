@@ -10,6 +10,8 @@
 
 run_toxicity=true
 
+source ".venv/bin/activate"
+
 mkdir -p logs
 
 module load eth_proxy gcc/8.2.0 python_gpu/3.11.2
@@ -23,9 +25,7 @@ export WANDB__SERVICE_WAIT=300
 
 if [ "$run_toxicity" == true ]
 then
-  echo "Hi"
-  python src/train_toxicity_baseline.py
-else
-  echo "Ni"
   python src/train_binary_target_baseline.py
+else
+  python src/train_target_group_baseline.py
 fi
