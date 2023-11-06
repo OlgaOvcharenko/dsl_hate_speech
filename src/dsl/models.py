@@ -3,7 +3,7 @@ from pathlib import Path
 import torch
 import wandb.plot
 from transformers import AutoModelForSequenceClassification, logging
-from transformers.adapters import BertAdapterModel
+from transformers.adapters import AutoAdapterModel
 
 logging.set_verbosity_error()
 
@@ -41,7 +41,7 @@ class MultiLabelModule(torch.nn.Module):
 class MultiClassAdapterModule(torch.nn.Module):
     def __init__(self, config: wandb.Config, local_files=True):
         super().__init__()
-        model = BertAdapterModel.from_pretrained(
+        model = AutoAdapterModel.from_pretrained(
             get_base_model_path(config),
             problem_type="single_label_classification",
             num_labels=2,

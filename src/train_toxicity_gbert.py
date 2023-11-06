@@ -14,20 +14,24 @@ with open("configs/toxicity/defaults.yaml") as f:
 
 config.update(
     {
-        "project": "toxicity-detection-test",
         "model_directory": "/cluster/scratch/ewybitul/models",
-        "model_base": "xlm-roberta-large",
-        # "dataset_portion": 0.001,
-        "learning_rate": 1e-6,
-        "use_learning_rate_finder": True,
-        "learning_rate_finder_steps": 500,
-        "end_learning_rate": 0.1,
-        "model": "test",
-        "logging_period": 1,
+        "train_data": "data/processed_comments_train_v3.csv",
+        "evaluation_data": "data/processed_comments_evaluation_v3.csv",
+        "base_model": "deepset/gbert-base",
+        "model": "toxicity-detection-baseline",
         "epochs": 2,
     }
 )
 
-wandb.init(project="toxicity-detection-test", config=config)
+wandb.init(project="toxicity-detection", config=config)
+
+match wandb.config["base_model"]:
+    case "Hate-speech-CNERG/dehatebert-mono-german_labels=2":
+        wandb.config.update(
+            {"transform_remove_umlauts": True, "transform_lowercase": True},
+            allow_val_change=True,
+        )
+
+
 model = MultiClassAdapterModule(wandb.config)
 train_and_eval(model, wandb.config)

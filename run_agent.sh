@@ -2,10 +2,11 @@
 
 #SBATCH --output=logs/log-%j.out
 #SBATCH --nodes=1
-#SBATCH --gpus=rtx_2080_ti:1
-#SBATCH --cpus-per-task=4
-#SBATCH --mem-per-cpu=8G
-#SBATCH --time=2:30:00
+#SBATCH --gpus=1
+#SBATCH --gres=gpumem:25g
+#SBATCH --cpus-per-task=6
+#SBATCH --mem-per-cpu=16G
+#SBATCH --time=04:00:00
 
 mkdir -p logs
 # module load eth_proxy gcc/8.2.0 python_gpu/3.11.2

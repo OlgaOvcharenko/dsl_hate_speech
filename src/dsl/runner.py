@@ -43,14 +43,15 @@ def train_and_eval(model: torch.nn.modules.module.Module, config: wandb.Config):
         class_weights=class_weights,
     )
 
-    eval_df, eval_dataset = setup_datasets(config, stage="test")  # type: ignore
-    eval_loader = setup_loader(
-        eval_dataset, shuffle=False, batch_size=config.batch_size
-    )
-    print(f"Starting evaluation with {len(eval_df)} examples...")
-    evaluate(
-        model=model,
-        comments_text=eval_df["comment"],
-        config=config,
-        loader=eval_loader,
-    )
+    if not config.use_learning_rate_finder:
+        eval_df, eval_dataset = setup_datasets(config, stage="test")  # type: ignore
+        eval_loader = setup_loader(
+            eval_dataset, shuffle=False, batch_size=config.batch_size
+        )
+        print(f"Starting evaluation with {len(eval_df)} examples...")
+        evaluate(
+            model=model,
+            comments_text=eval_df["comment"],
+            config=config,
+            loader=eval_loader,
+        )

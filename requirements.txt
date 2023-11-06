@@ -5,6 +5,7 @@ async-timeout
 attrs
 black
 certifi
+emoji
 filelock
 frozenlist
 fsspec

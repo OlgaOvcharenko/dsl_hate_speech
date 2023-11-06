@@ -5,4 +5,4 @@ class_names: ["non_toxic", "toxic"]
 base_model: "Hate-speech-CNERG/dehatebert-mono-german_labels=2"
 
 # OPTIMIZER
-learning_rate: 1.0e-4
+# learning_rate: 1.0e-4

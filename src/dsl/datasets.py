@@ -1,5 +1,7 @@
+import re
 from typing import Callable, Optional
 
+import emoji
 import numpy as np
 import polars as pr
 import polars.selectors as cs
@@ -20,8 +22,21 @@ def _get_tokenizer(model_directory: str, model_id: str, local_files=True):
 
 
 class CommentDataset(Dataset):
-    def __init__(self, comments: np.ndarray, labels: torch.Tensor, tokenizer: Callable):
-        self.comments = self._preprocess(comments)
+    def __init__(
+        self,
+        comments: np.ndarray,
+        labels: torch.Tensor,
+        tokenizer: Callable,
+        lowercase: bool,
+        tweet_clean: bool,
+        remove_umlauts: bool,
+    ):
+        self.comments = self._preprocess(
+            comments,  # type: ignore
+            lowercase=lowercase,
+            tweet_clean=tweet_clean,
+            remove_umlauts=remove_umlauts,
+        )
         self.labels = labels
         self.tokenizer = tokenizer
 
@@ -29,17 +44,30 @@ class CommentDataset(Dataset):
         return len(self.comments)
 
     def _preprocess(
-        self, comments: list, lowercase: bool = False, tweet_clean: bool = False
+        self, comments: list, lowercase: bool, tweet_clean: bool, remove_umlauts: bool
     ):
         def _preprocess_val(val: str):
-            val = (
-                (p.clean(val).lower() if lowercase else p.clean(val))
-                if tweet_clean
-                else val
-            )
-            return val.replace("ü", "ue").replace("ä", "ae").replace("ö", "oe")
+            p.set_options(p.OPT.URL, p.OPT.MENTION)
+            if tweet_clean:
+                val = p.clean(val)
+            if lowercase:
+                val = val.lower()
+            if remove_umlauts:
+                val = (
+                    val.replace("ü", "ue")
+                    .replace("ä", "ae")
+                    .replace("ö", "oe")
+                    .replace("Ü", "Ue")
+                    .replace("Ä", "Ae")
+                    .replace("Ö", "Oe")
+                )
+            val = emoji.demojize(val, language="de")
+            val = val.replace("\n", " ")
+            val = re.sub(r"\s+", " ", val)
+            val = re.sub(r"<\/?[^>]*>", "", val)
+            val = val.strip()
+            return val
 
-        p.set_options(p.OPT.URL, p.OPT.MENTION, p.OPT.NUMBER, p.OPT.EMOJI, p.OPT.SMILEY)
         return np.array([_preprocess_val(str(comment)) for comment in comments])
 
     def _tokenize(self, comments):
@@ -98,8 +126,22 @@ def setup_datasets(config: wandb.Config, stage: str):
             )
 
         train_c, train_l, val_c, val_l = _split(comments, labels, config)
-        train_dataset = CommentDataset(train_c, train_l, tokenizer)
-        val_dataset = CommentDataset(val_c, val_l, tokenizer)
+        train_dataset = CommentDataset(
+            train_c,
+            train_l,
+            tokenizer,
+            lowercase=config.transform_lowercase,
+            tweet_clean=config.transform_clean,
+            remove_umlauts=config.transform_remove_umlauts,
+        )
+        val_dataset = CommentDataset(
+            val_c,
+            val_l,
+            tokenizer,
+            lowercase=config.transform_lowercase,
+            tweet_clean=config.transform_clean,
+            remove_umlauts=config.transform_remove_umlauts,
+        )
 
         return df, train_dataset, val_dataset
     elif stage == "test":
@@ -114,7 +156,14 @@ def setup_datasets(config: wandb.Config, stage: str):
             _, _, comments, labels = _split(
                 comments, labels, config, size=config.dataset_portion
             )
-        return df, CommentDataset(comments, labels, tokenizer)
+        return df, CommentDataset(
+            comments,
+            labels,
+            tokenizer,
+            lowercase=config.transform_lowercase,
+            tweet_clean=config.transform_clean,
+            remove_umlauts=config.transform_remove_umlauts,
+        )
 
 
 def setup_loader(data: Dataset, batch_size: int, shuffle: bool):

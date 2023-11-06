@@ -4,10 +4,14 @@ from typing import Callable, Optional
 
 import polars as pr
 import torch
-import torch.nn.functional as F
 import wandb.plot
+from packaging import version
+from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
 from torchmetrics import MetricCollection
+
+PYTORCH_VERSION = version.parse(torch.__version__)
+
 
 import wandb
 from dsl.metrics import (
@@ -53,6 +57,39 @@ def _get_loss(classes_num: int, class_weights: Optional[torch.Tensor] = None):
         return torch.nn.BCEWithLogitsLoss(weight=class_weights, reduction="none")
 
 
+class ExponentialLR(_LRScheduler):
+    """Exponentially increases the learning rate between two boundaries over a number of
+    iterations.
+
+    Arguments:
+        optimizer (torch.optim.Optimizer): wrapped optimizer.
+        end_lr (float): the final learning rate.
+        num_iter (int): the number of iterations over which the test occurs.
+        last_epoch (int, optional): the index of last epoch. Default: -1.
+    """
+
+    def __init__(self, optimizer, end_lr, num_iter, last_epoch=-1):
+        self.end_lr = end_lr
+
+        if num_iter <= 1:
+            raise ValueError("`num_iter` must be larger than 1")
+        self.num_iter = num_iter
+
+        super(ExponentialLR, self).__init__(optimizer, last_epoch)
+
+    def get_lr(self):
+        # In earlier Pytorch versions last_epoch starts at -1, while in recent versions
+        # it starts at 0. We need to adjust the math a bit to handle this. See
+        # discussion at: https://github.com/davidtvs/pytorch-lr-finder/pull/42
+        if PYTORCH_VERSION < version.parse("1.1.0"):
+            curr_iter = self.last_epoch + 1
+            r = curr_iter / (self.num_iter - 1)
+        else:
+            r = self.last_epoch / (self.num_iter - 1)
+
+        return [base_lr * (self.end_lr / base_lr) ** r for base_lr in self.base_lrs]
+
+
 def train(
     model: torch.nn.Module,
     config: wandb.Config,
@@ -69,6 +106,12 @@ def train(
     checkpoint_path.mkdir(parents=True, exist_ok=True)
 
     optimizer = _get_optimizer(config, model)
+    if config.use_learning_rate_finder:
+        learning_rate_scheduler = ExponentialLR(
+            optimizer,
+            end_lr=config.end_learning_rate,
+            num_iter=config.learning_rate_finder_steps,
+        )
     train_metrics = setup_metrics(len(config.class_names), stage="train").to(device)
     val_metrics = setup_metrics(len(config.class_names), stage="validation").to(device)
     model = model.to(device)
@@ -102,10 +145,32 @@ def train(
             )
 
             example_ct += labels.size(0)
-            if (step + 1) % config.logging_period == 0:
-                metrics = {"train/throughput": example_ct / (time.time() - start_time)}
-                metrics.update(process_metrics(train_metrics_vals, config.class_names))
-                wandb.log(metrics, step=example_ct)
+            should_log = (step + 1) % config.logging_period == 0
+            if config.use_learning_rate_finder:
+                should_log = True
+                learning_rate_scheduler.step()  # type: ignore
+            if should_log:
+                if config.use_learning_rate_finder:
+                    wandb.log(
+                        {
+                            "train/loss": loss.mean().item(),
+                            "train/lr": learning_rate_scheduler.get_last_lr()[0],  # type: ignore
+                        },
+                        step=step,
+                    )
+                else:
+                    metrics = {
+                        "train/throughput": example_ct / (time.time() - start_time)
+                    }
+                    metrics.update(
+                        process_metrics(train_metrics_vals, config.class_names)
+                    )
+                    wandb.log(metrics, step=example_ct)
+            if (
+                config.use_learning_rate_finder
+                and step == config.learning_rate_finder_steps
+            ):
+                return
 
         train_metrics.reset()
 
@@ -139,6 +204,14 @@ def train(
                 model_latest,
                 checkpoint_path / f"{config.model}_epoch={epoch}.ckpt",
             )
+
+        if (
+            config.early_stopping_enabled
+            and (epoch + 1) >= config.early_stopping_epoch
+            and val_metrics_vals[config.early_stopping_metric]
+            >= config.early_stopping_threshold
+        ):
+            break
 
     torch.save(model_latest, checkpoint_path / f"{config.model}_latest.ckpt")
     torch.save(model_best, checkpoint_path / f"{config.model}_best.ckpt")
@@ -208,7 +281,7 @@ def _evaluate(
                 target=labels.long(),
             )
             if stage == "evaluation":
-                macro_f1.update(preds=preds, target=labels.long())
+                macro_f1.update(preds=preds, target=labels.long())  # type: ignore
             # f1_curve.update(
             #     preds=logits.softmax(dim=1),
             #     target=labels.long()
@@ -246,8 +319,8 @@ def _evaluate(
 
         metric_values = metrics.compute()
         if stage == "evaluation":
-            metric_values.update(macro_f1.compute())
-            macro_f1.reset()
+            metric_values.update(macro_f1.compute())  # type: ignore
+            macro_f1.reset()  # type: ignore
         # metric_values.update(f1_curve.compute())
         # f1_curve.reset()
         metrics.reset()
