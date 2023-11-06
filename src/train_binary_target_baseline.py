@@ -12,7 +12,7 @@ optimizer_config = {
 }
 
 training_config = {
-    "epochs": 15,
+    "epochs": 30,
     "batch_size": 16,
     "debug_subset": None,
     "log_every_nth_step": 512,
