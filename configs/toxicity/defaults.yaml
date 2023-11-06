@@ -2,7 +2,7 @@
 class_names: ["non_toxic", "toxic"]
 
 # MODEL
-base_model: "Hate-speech-CNERG/dehatebert-mono-german_labels=2"
+base_model: "deepset/gbert-base"
 
 # OPTIMIZER
-# learning_rate: 1.0e-4
+learning_rate: 1.0e-4
