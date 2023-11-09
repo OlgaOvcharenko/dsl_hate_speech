@@ -2,18 +2,17 @@ import time
 from pathlib import Path
 from typing import Callable, Optional
 
+# import bitsandbytes as bnb
 import polars as pr
 import torch
-import wandb.plot
+from accelerate import Accelerator
 from packaging import version
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
 from torchmetrics import MetricCollection
 
-PYTORCH_VERSION = version.parse(torch.__version__)
-
-
 import wandb
+import wandb.plot
 from dsl.metrics import (
     log_sample_predictions,
     process_metrics,
@@ -21,30 +20,19 @@ from dsl.metrics import (
     setup_metrics,
 )
 
-
-def _get_device():
-    return torch.device(
-        "cuda"
-        if torch.cuda.is_available()
-        else "mps"
-        if torch.backends.mps.is_available()
-        else "cpu"
-    )
+PYTORCH_VERSION = version.parse(torch.__version__)
 
 
 def _get_optimizer(config: wandb.Config, model: torch.nn.Module):
+    params, lr = model.parameters(), config.learning_rate
     if config.optimizer == "sgd":
         optimizer = torch.optim.SGD(
-            model.parameters(),
-            lr=config.learning_rate,
-            momentum=config.momentum,
-            nesterov=config.nesterov,
+            params, lr=lr, momentum=config.momentum, nesterov=True
         )
     elif config.optimizer == "adam":
-        optimizer = torch.optim.Adam(
-            model.parameters(),
-            lr=config.learning_rate,
-        )
+        optimizer = torch.optim.Adam(params, lr=lr)
+    elif config.optimizer == "adam_8bit":
+        optimizer = bnb.optim.Adam8bit(params, lr=lr)
     else:
         raise ValueError(f"Unknown optimizer {config.optimizer}")
     return optimizer
@@ -100,12 +88,18 @@ def train(
 ):
     assert wandb.run is not None
     # wandb.watch(model, log="all", log_freq=1024)
-    device = _get_device()
 
     checkpoint_path = Path(config.model_directory) / "checkpoints" / wandb.run.name
     checkpoint_path.mkdir(parents=True, exist_ok=True)
 
     optimizer = _get_optimizer(config, model)
+    accelerator = Accelerator(mixed_precision=config.mixed_precision)
+    model, optimizer, train_loader, val_loader = accelerator.prepare(
+        model, optimizer, train_loader, val_loader
+    )
+
+    device = accelerator.device
+
     if config.use_learning_rate_finder:
         learning_rate_scheduler = ExponentialLR(
             optimizer,
@@ -114,7 +108,6 @@ def train(
         )
     train_metrics = setup_metrics(len(config.class_names), stage="train").to(device)
     val_metrics = setup_metrics(len(config.class_names), stage="validation").to(device)
-    model = model.to(device)
 
     example_ct = 0
     model_best, model_latest = None, None
@@ -128,13 +121,11 @@ def train(
         model.train()
 
         print(f"Epoch {epoch}")
-        for step, (_, comments, labels) in enumerate(train_loader):
-            comments, labels = comments.to(device), labels.to(device)
-
+        for step, (_, comments, labels) in enumerate(train_loader, start=1):
             outputs = model(input_ids=comments, labels=labels)
             optimizer.zero_grad()
             loss = loss_fn(outputs.logits, labels)
-            loss.mean().backward()
+            accelerator.backward(loss.mean())
             optimizer.step()
 
             preds = outputs.logits.softmax(dim=1)
@@ -145,7 +136,7 @@ def train(
             )
 
             example_ct += labels.size(0)
-            should_log = (step + 1) % config.logging_period == 0
+            should_log = step % config.logging_period == 0
             if config.use_learning_rate_finder:
                 should_log = True
                 learning_rate_scheduler.step()  # type: ignore
@@ -183,9 +174,15 @@ def train(
             log_examples=False,
             stage="validation",
             loss_fn=loss_fn,
+            device=device,
         )
         wandb.log(val_metrics_vals, step=example_ct)
 
+        model_latest = {
+            "epoch": epoch,
+            "model": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+        }
         if val_metrics_vals["validation/loss"] < best_val_loss:
             best_val_loss = val_metrics_vals["validation/loss"]
             model_best = {
@@ -193,11 +190,6 @@ def train(
                 "model": model.state_dict(),
                 "optimizer": optimizer.state_dict(),
             }
-        model_latest = {
-            "epoch": epoch,
-            "model": model.state_dict(),
-            "optimizer": optimizer.state_dict(),
-        }
 
         if config.create_checkpoints and (epoch + 1) % config.checkpoint_period == 0:
             torch.save(
@@ -222,6 +214,9 @@ def train(
         model_artifact.add_file(checkpoint_path / f"{config.model}_best.ckpt")
         wandb.log_artifact(model_artifact, aliases=["best", "latest"])
 
+    model.load_state_dict(model_best["model"])  # type: ignore
+    return model
+
 
 def evaluate(
     model: torch.nn.Module,
@@ -230,7 +225,10 @@ def evaluate(
     loader: DataLoader,
     class_weights: Optional[torch.Tensor] = None,
 ):
-    device = _get_device()
+    accelerator = Accelerator(mixed_precision=config.mixed_precision)
+    model, loader = accelerator.prepare(model, loader)
+    device = accelerator.device
+
     metrics = setup_metrics(len(config.class_names), stage="evaluation").to(device)
     metric_vals = _evaluate(
         model=model,
@@ -242,6 +240,7 @@ def evaluate(
         class_names=config.class_names,
         stage="evaluation",
         loss_fn=_get_loss(len(config.class_names), class_weights),
+        device=device,
     )
 
     wandb.log(metric_vals)
@@ -256,9 +255,9 @@ def _evaluate(
     class_names: list[str],
     stage: str,
     loss_fn: Callable,
+    device: torch.device,
     examples_to_log: Optional[int] = None,
 ):
-    device = _get_device()
     model.eval()
     # f1_curve = setup_f1_curve(num_labels=len(class_names), stage=stage).to(device)
     if stage == "evaluation":
@@ -305,7 +304,8 @@ def _evaluate(
             if examples_to_log is None:
                 examples_to_log = losses.size(0)
             _, indices = torch.topk(
-                losses, min(examples_to_log, losses.size(0))  # type: ignore
+                losses,
+                min(examples_to_log, losses.size(0)),  # type: ignore
             )
             predictions = torch.argmax(logits[indices], dim=1)
             log_sample_predictions(

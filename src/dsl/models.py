@@ -1,13 +1,14 @@
 from pathlib import Path
 
+import peft
 import torch
-import wandb.plot
 from transformers import AutoModelForSequenceClassification, logging
 from transformers.adapters import AutoAdapterModel
 
-logging.set_verbosity_error()
-
 import wandb
+import wandb.plot
+
+logging.set_verbosity_error()
 
 
 def get_base_model_path(config: wandb.Config):
@@ -53,6 +54,31 @@ class MultiClassAdapterModule(torch.nn.Module):
         model.train_adapter("toxicity")
         model.set_active_adapters("toxicity")
         self.model = model
+
+    def forward(self, input_ids, attention_mask=None, labels=None):
+        return self.model(
+            input_ids=input_ids, attention_mask=attention_mask, labels=labels
+        )
+
+
+class MultiClassPEFTModule(torch.nn.Module):
+    def __init__(self, config: wandb.Config, local_files=True):
+        super().__init__()
+        model = AutoModelForSequenceClassification.from_pretrained(
+            get_base_model_path(config),
+            problem_type="single_label_classification",
+            num_labels=2,
+            local_files_only=local_files,
+        )
+        print(model)
+        peft_config = peft.tuners.lora.LoraConfig(
+            r=32,
+            lora_alpha=32,
+            target_modules=["query", "value"],
+            modules_to_save=["classifier"],
+            lora_dropout=0.1,
+        )
+        self.model = peft.mapping.get_peft_model(model, peft_config)
 
     def forward(self, input_ids, attention_mask=None, labels=None):
         return self.model(

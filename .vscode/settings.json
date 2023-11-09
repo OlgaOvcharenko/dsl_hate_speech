@@ -3,5 +3,7 @@
         ".venv/**": true,
         "models/**": true,
         "wandb/**": true,
+        "__pycache__/**": true,
+        "data/**": true,
     }
 }

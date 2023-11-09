@@ -167,7 +167,7 @@ def setup_datasets(config: wandb.Config, stage: str):
 
 
 def setup_loader(data: Dataset, batch_size: int, shuffle: bool):
-    return DataLoader(data, batch_size=batch_size, shuffle=shuffle, num_workers=4)
+    return DataLoader(data, batch_size=batch_size, shuffle=shuffle, num_workers=4, pin_memory=True)
 
 
 def class_weights_eff_num(df: pr.DataFrame, class_names: list[str], beta: float):

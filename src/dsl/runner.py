@@ -10,6 +10,9 @@ from dsl.datasets import (
 from dsl.train import evaluate, train
 from dsl.utils import seed_everywhere
 
+# torch.backends.cuda.matmul.allow_tf32 = True
+# torch.backends.cudnn.allow_tf32 = True
+
 
 def train_and_eval(model: torch.nn.modules.module.Module, config: wandb.Config):
     seed_everywhere(config.seed)
@@ -34,7 +37,7 @@ def train_and_eval(model: torch.nn.modules.module.Module, config: wandb.Config):
             print(f"\t{c}: {w}")
         print()
 
-    train(
+    best_model = train(
         model=model,
         comments_text=train_df["comment"],
         config=config,
@@ -50,7 +53,7 @@ def train_and_eval(model: torch.nn.modules.module.Module, config: wandb.Config):
         )
         print(f"Starting evaluation with {len(eval_df)} examples...")
         evaluate(
-            model=model,
+            model=best_model,
             comments_text=eval_df["comment"],
             config=config,
             loader=eval_loader,

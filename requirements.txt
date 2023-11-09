@@ -3,6 +3,7 @@ aiohttp
 aiosignal
 async-timeout
 attrs
+bitsandbytes
 black
 certifi
 emoji
@@ -23,6 +24,7 @@ networkx
 numpy
 packaging
 pandas
+peft
 polars
 pylama
 python-dateutil
