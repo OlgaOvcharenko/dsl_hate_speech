@@ -47,7 +47,7 @@ class CommentDataset(Dataset):
         self, comments: list, lowercase: bool, tweet_clean: bool, remove_umlauts: bool
     ):
         def _preprocess_val(val: str):
-            p.set_options(p.OPT.URL, p.OPT.MENTION)
+            p.set_options(p.OPT.URL, p.OPT.MENTION)  # type: ignore
             if tweet_clean:
                 val = p.clean(val)
             if lowercase:
@@ -109,6 +109,57 @@ def _split(comments, labels, config, size=None):
     return comments[train_idx], labels[train_idx], comments[val_idx], labels[val_idx]
 
 
+def _split_2(comments, labels, config, size=None):
+    if size is None:
+        size = config.validation_split
+    if len(config.class_names) == 2:
+        stratifier = StratifiedShuffleSplit(
+            n_splits=1, test_size=size, random_state=config.seed
+        )
+    else:
+        stratifier = MultilabelStratifiedShuffleSplit(
+            n_splits=1, test_size=size, random_state=config.seed
+        )
+
+    train_idx, val_idx = next(stratifier.split(comments, labels))
+    return train_idx, val_idx
+
+
+def setup_datasets_2(config: wandb.Config):
+    tokenizer = _get_tokenizer(config.model_directory, config.base_model)
+    df, comments, labels = _load_data(config.train_data, config.class_names)
+    if len(config.class_names) > 2:
+        # Only train on toxic comments
+        # TODO: Setup a separate Dataset class for this
+        indices = df["toxic"] == 1
+        df = df[indices]
+        comments = comments[indices]
+        labels = labels[indices, :]
+    if config.dataset_portion < 1:
+        _, val_idx = _split_2(comments, labels, config, size=config.dataset_portion)
+        comments, labels = comments[val_idx], labels[val_idx]
+
+    train_idx, val_idx = _split_2(comments, labels, config)
+    train_dataset = CommentDataset(
+        comments[train_idx],
+        labels[train_idx],
+        tokenizer,
+        lowercase=config.transform_lowercase,
+        tweet_clean=config.transform_clean,
+        remove_umlauts=config.transform_remove_umlauts,
+    )
+    val_dataset = CommentDataset(
+        comments[val_idx],
+        labels[val_idx],
+        tokenizer,
+        lowercase=config.transform_lowercase,
+        tweet_clean=config.transform_clean,
+        remove_umlauts=config.transform_remove_umlauts,
+    )
+
+    return df[train_idx], df[val_idx], train_dataset, val_dataset
+
+
 def setup_datasets(config: wandb.Config, stage: str):
     tokenizer = _get_tokenizer(config.model_directory, config.base_model)
     if stage == "fit":
@@ -167,7 +218,9 @@ def setup_datasets(config: wandb.Config, stage: str):
 
 
 def setup_loader(data: Dataset, batch_size: int, shuffle: bool):
-    return DataLoader(data, batch_size=batch_size, shuffle=shuffle, num_workers=4, pin_memory=True)
+    return DataLoader(
+        data, batch_size=batch_size, shuffle=shuffle, num_workers=4, pin_memory=True
+    )
 
 
 def class_weights_eff_num(df: pr.DataFrame, class_names: list[str], beta: float):
