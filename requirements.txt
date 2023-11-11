@@ -3,7 +3,6 @@ aiohttp
 aiosignal
 async-timeout
 attrs
-bitsandbytes
 black
 certifi
 emoji
@@ -35,7 +34,7 @@ requests
 six
 sympy
 tokenizers
-torch
+torch==2.0.1+cu118
 torchmetrics
 tqdm
 transformers
