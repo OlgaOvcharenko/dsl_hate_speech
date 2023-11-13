@@ -1,16 +1,27 @@
-
+import flair
 from flair.models import TARSClassifier
-from flair.data import Sentence
-import pandas as pd
-import numpy as np
-from sklearn.metrics import ConfusionMatrixDisplay
-from sklearn.metrics import precision_recall_fscore_support
-from sklearn.metrics import accuracy_score
-import matplotlib.pyplot as plt
-from flair.data import Corpus
+from flair.data import Corpus, Sentence
 from flair.datasets import SentenceDataset
 from flair.trainers import ModelTrainer
 
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.metrics import ConfusionMatrixDisplay
+from sklearn.metrics import precision_recall_fscore_support
+from sklearn.metrics import accuracy_score
+
+import torch
+
+
+device = None
+if torch.cuda.is_available():
+    device = torch.device('cuda:0')
+else:
+    device = torch.device('cpu')
+flair.device = device
+print(device)
 
 def read_data(path: str):
     return pd.read_csv(path, encoding='utf-8')
@@ -48,19 +59,19 @@ def train_few(train, test, comment_col):
     
     comments_train = []
     for i in range(train.shape[0]):
-        labels = [classes[j] for j in range((train.iloc[i, 1: -4]).shape[0]) if train.iloc[i, j]]
-        
-        # FIXME tmp fix train 1 vs all?
-        labels = labels[0:3]
-        print(labels)
-        
-        Sentence(train[comment_col].iloc[i], language_code='de').add_label(*labels) 
+        labels = [classes[j-1] for j in range(1, len(classes)+1) if train.iloc[i, j]]
+
+        sentence = Sentence(train[comment_col].iloc[i], language_code='de')
+        [sentence.add_label(l, l) for l in labels]
+        comments_train.append(sentence)
     
     comments_test = []
     for i in range(test.shape[0]):
-        labels = [classes[j] for j in range((test.iloc[i, 1: -4]).shape[0]) if test.iloc[i, j]]
-        print(*labels)
-        Sentence(test[comment_col].iloc[i], language_code='de').add_label(*labels) 
+        labels = [classes[j-1] for j in range(1, len(classes)+1) if test.iloc[i, j]]
+
+        sentence = Sentence(test[comment_col].iloc[i], language_code='de')
+        [sentence.add_label(l, l) for l in labels]
+        comments_test.append(sentence)
     
     print('Created sentences.')
 
@@ -69,14 +80,19 @@ def train_few(train, test, comment_col):
 
     corpus = Corpus(train=train, test=test)
     print('Made corpus.')
-
-    tars.add_and_switch_to_new_task("TARGET_PREDICTION", label_dictionary=corpus.make_label_dictionary())
+    label_type = 'target_class'
+    tars.add_and_switch_to_new_task("target classification", 
+                                    label_dictionary=corpus.make_label_dictionary(label_type = label_type),
+                                    label_type=label_type)
     
     trainer = ModelTrainer(tars, corpus)
     trainer.train(base_path='few_shot/target', 
                   learning_rate=0.02, 
                   mini_batch_size=16, 
                   max_epochs=15, 
+                  save_final_model=True,
+                  create_file_logs=True,
+                  create_loss_file=True
                 )
     
     # Load few-shot TARS model

@@ -40,3 +40,4 @@ tzdata
 urllib3
 wandb
 yarl
+flair
