@@ -89,31 +89,14 @@ def train_few(train, test, comment_col):
     
     trainer = ModelTrainer(tars, corpus)
     trainer.train(base_path='few_shot/target', 
-                  learning_rate=0.02, 
                   mini_batch_size=16, 
                   max_epochs=15, 
                   save_final_model=True,
                   create_file_logs=True,
-                  create_loss_file=True
+                  create_loss_file=True,
+                  learning_rate=3e-5,
+                  main_evaluation_metric = ("micro avg", "f1-score", "macro f1-score"),
                 )
-    
-    # Load few-shot TARS model
-    tars = TARSClassifier.load('few_shot/target/final-model.pt')
-
-    res = np.zeros((len(comments_test), len(classes)))
-
-    for i, x in enumerate(comments_test):
-        tars.predict(x, classes, multi_label=False)
-        res[i, [classes.index(label.value) for label in x.labels]] = [label.score for label in x.labels]
-
-        tars.predict(x, classes, multi_label=True)
-        res[i, [classes.index(label.value) for label in x.labels]] = [label.score for label in x.labels]
-
-        if i % 100 == 0:
-            print(f"{i}th iteration of {test.shape[0]}")
-
-    print(res)
-    np.savetxt("data/zero_shot.csv", res, delimiter=",")
 
 
 def check_results(path_res: str, data: pd.DataFrame):
@@ -139,8 +122,8 @@ comment_col = 'comment'
 train = read_data(path)
 train = train[train.targeted == 1]
 
-test = read_data(path).iloc[0:10]
-test = test[test.targeted == 1].iloc[0:10]
+test = read_data(path)
+test = test[test.targeted == 1]
 print('Read file.')
 
 train_few(train, test, comment_col)
