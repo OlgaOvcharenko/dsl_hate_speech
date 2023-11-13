@@ -16,4 +16,4 @@ nvidia-smi
 
 source ".venv/bin/activate"
 
-python run_few_shot.sh
+python few_shot.py

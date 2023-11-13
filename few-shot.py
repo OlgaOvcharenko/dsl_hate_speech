@@ -57,12 +57,14 @@ def train_few(train, test, comment_col):
     classes = ["geschlecht", "alter", "sexualitat", "religion", "nationalitaet", 
             "behinderung", "sozialer status", "politische ansichten",  "aussehen"]
     
+    label_type = 'target_class'
+    
     comments_train = []
     for i in range(train.shape[0]):
         labels = [classes[j-1] for j in range(1, len(classes)+1) if train.iloc[i, j]]
 
         sentence = Sentence(train[comment_col].iloc[i], language_code='de')
-        [sentence.add_label(l, l) for l in labels]
+        [sentence.add_label(label_type, l) for l in labels]
         comments_train.append(sentence)
     
     comments_test = []
@@ -70,7 +72,7 @@ def train_few(train, test, comment_col):
         labels = [classes[j-1] for j in range(1, len(classes)+1) if test.iloc[i, j]]
 
         sentence = Sentence(test[comment_col].iloc[i], language_code='de')
-        [sentence.add_label(l, l) for l in labels]
+        [sentence.add_label(label_type, l) for l in labels]
         comments_test.append(sentence)
     
     print('Created sentences.')
@@ -80,7 +82,7 @@ def train_few(train, test, comment_col):
 
     corpus = Corpus(train=train, test=test)
     print('Made corpus.')
-    label_type = 'target_class'
+    
     tars.add_and_switch_to_new_task("target classification", 
                                     label_dictionary=corpus.make_label_dictionary(label_type = label_type),
                                     label_type=label_type)
