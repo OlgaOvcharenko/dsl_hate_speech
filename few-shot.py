@@ -124,7 +124,7 @@ def train_few_binary(train, test, comment_col, classes, label_col):
     
     comments_train = []
     for i in range(train.shape[0]):
-        label = classes[0] if train[label_col].iloc[i, :] == 1 else classes[1]
+        label = classes[0] if train[label_col].iloc[i] == 1 else classes[1]
 
         sentence = Sentence(train[comment_col].iloc[i], language_code='de')
         sentence.add_label(label_type, label)
@@ -132,7 +132,7 @@ def train_few_binary(train, test, comment_col, classes, label_col):
     
     comments_test = []
     for i in range(test.shape[0]):
-        label = classes[0] if test[label_col].iloc[i, :] == 1 else classes[1]
+        label = classes[0] if test[label_col].iloc[i] == 1 else classes[1]
 
         sentence = Sentence(test[comment_col].iloc[i], language_code='de')
         sentence.add_label(label_type, label)
@@ -151,7 +151,7 @@ def train_few_binary(train, test, comment_col, classes, label_col):
                                     label_type=label_type)
     
     trainer = ModelTrainer(tars, corpus)
-    trainer.train(base_path='few_shot/target', 
+    trainer.train(base_path=f'few_shot/target/{label_col}', 
                   mini_batch_size=8, 
                   max_epochs=15, 
                   save_final_model=True,
