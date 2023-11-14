@@ -91,10 +91,10 @@ def train_few(train, test, comment_col):
     trainer.train(base_path='few_shot/target', 
                   mini_batch_size=8, 
                   max_epochs=15, 
+                  learning_rate=0.001,
                   save_final_model=True,
                   create_file_logs=True,
                   create_loss_file=True,
-                  learning_rate=3e-5,
                   main_evaluation_metric = ("micro avg", "f1-score", "macro f1-score"),
                 )
 
