@@ -5,12 +5,11 @@ metric:
   goal: minimize
 parameters:
   model:
-    values:
+    value:
       "xlm-roberta-large"
   optimizer:
     value: "adam"
   learning_rate:
-    min: 0.0001
-    max: 0.1
+    values: [0.001, 0.001]
   epochs:
-    value: [10, 15]
+    values: [10, 15]
