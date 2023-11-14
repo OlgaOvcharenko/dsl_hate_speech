@@ -157,7 +157,7 @@ def train_few_binary(train, test, comment_col, classes, label_col):
                   save_final_model=True,
                   create_file_logs=True,
                   create_loss_file=True,
-                  learning_rate=3e-5,
+                  learning_rate=0.001,
                   main_evaluation_metric = ("micro avg", "f1-score", "macro f1-score"),
                 )
 
