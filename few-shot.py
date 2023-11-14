@@ -89,7 +89,7 @@ def train_few(train, test, comment_col):
     
     trainer = ModelTrainer(tars, corpus)
     trainer.train(base_path='few_shot/target', 
-                  mini_batch_size=16, 
+                  mini_batch_size=8, 
                   max_epochs=15, 
                   save_final_model=True,
                   create_file_logs=True,
@@ -117,6 +117,51 @@ def check_results(path_res: str, data: pd.DataFrame):
         plt.savefig(f'plots_zero/{col}.png')
 
 
+def train_few_binary(train, test, comment_col, classes, label_col):
+    tars = TARSClassifier.load('tars-base')
+    
+    label_type = 'target_class'
+    
+    comments_train = []
+    for i in range(train.shape[0]):
+        label = classes[0] if train[label_col].iloc[i, :] == 1 else classes[1]
+
+        sentence = Sentence(train[comment_col].iloc[i], language_code='de')
+        sentence.add_label(label_type, label)
+        comments_train.append(sentence)
+    
+    comments_test = []
+    for i in range(test.shape[0]):
+        label = classes[0] if test[label_col].iloc[i, :] == 1 else classes[1]
+
+        sentence = Sentence(test[comment_col].iloc[i], language_code='de')
+        sentence.add_label(label_type, label)
+        comments_test.append(sentence)
+    
+    print('Created sentences.')
+
+    train = SentenceDataset(comments_train)
+    test = SentenceDataset(comments_test)
+
+    corpus = Corpus(train=train, test=test)
+    print('Made corpus.')
+    
+    tars.add_and_switch_to_new_task("target classification", 
+                                    label_dictionary=corpus.make_label_dictionary(label_type = label_type),
+                                    label_type=label_type)
+    
+    trainer = ModelTrainer(tars, corpus)
+    trainer.train(base_path='few_shot/target', 
+                  mini_batch_size=8, 
+                  max_epochs=15, 
+                  save_final_model=True,
+                  create_file_logs=True,
+                  create_loss_file=True,
+                  learning_rate=3e-5,
+                  main_evaluation_metric = ("micro avg", "f1-score", "macro f1-score"),
+                )
+
+
 path, path_test = "data/processed_comments_train_v1.csv", "data/processed_comments_evaluation_v1.csv"
 comment_col = 'comment'
 train = read_data(path)
@@ -126,5 +171,13 @@ test = read_data(path)
 test = test[test.targeted == 1]
 print('Read file.')
 
-train_few(train, test, comment_col)
-# check_results("data/zero_shot.csv", test.iloc[0:1000])
+
+classes_ger = ["geschlecht", "alter", "sexualitat", "religion", "nationalitaet", 
+               "behinderung", "sozialer status", "politische ansichten",  "aussehen"]
+
+classes_eng = ["gender", "age", "sexuality", "religion", "nationality", 
+               "disability", "social_status", "political_views", "appearance"]
+
+for e, g in zip(classes_eng, classes_ger):
+    classes_binary = [f"{g} hassrede", f"keine {g} hassrede"]
+    train_few_binary(train, test, comment_col, classes=classes_binary, label_col=e)
