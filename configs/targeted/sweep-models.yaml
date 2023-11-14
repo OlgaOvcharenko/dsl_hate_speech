@@ -1,0 +1,15 @@
+program: src/train_targeted_baseline.py
+method: grid
+metric:
+  name: validation_loss
+  goal: minimize
+parameters:
+  model:
+    values:
+      "xlm-roberta-large"
+  optimizer:
+    value: "adam"
+  learning_rate:
+    value: [1.0e-5 1.0e-5]
+  epochs:
+    value: [10 15]
