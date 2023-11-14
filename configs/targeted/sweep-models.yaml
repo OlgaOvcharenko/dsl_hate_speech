@@ -10,6 +10,7 @@ parameters:
   optimizer:
     value: "adam"
   learning_rate:
-    value: [1.0e-5 1.0e-5]
+    min: 0.0001
+    max: 0.1
   epochs:
-    value: [10 15]
+    value: [10, 15]
