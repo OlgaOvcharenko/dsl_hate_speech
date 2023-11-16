@@ -76,7 +76,7 @@ def _split(comments, labels, config, size=None):
 
 
 def setup_datasets(config: wandb.Config, stage: str):
-    tokenizer = _get_tokenizer(config.model_directory, config.base_model)
+    tokenizer = _get_tokenizer(config.model_directory, config.model)
     if stage == "fit":
         df, comments, labels = _load_data(config.train_data, config.class_names)
         if (len(config.class_names) > 2) or (len(config.class_names) == 2 and config.class_names[1] == "targeted"):

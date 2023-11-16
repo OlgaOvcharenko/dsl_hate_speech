@@ -2,7 +2,7 @@
 class_names: ["non_targeted", "targeted"]
 
 # MODEL
-base_model: "Hate-speech-CNERG/dehatebert-mono-german_labels=2"
+base_model: "Hate-speech-CNERG/dehatebert-mono-german"
 
 # OPTIMIZER
 learning_rate: 1.0e-4
