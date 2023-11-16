@@ -1,5 +1,5 @@
 # DATA
-class_names: ["non_toxic", "toxic"]
+class_names: ["non_targeted", "targeted"]
 
 # MODEL
 base_model: "deepset/gbert-base"
