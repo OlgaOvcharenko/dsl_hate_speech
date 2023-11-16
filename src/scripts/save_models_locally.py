@@ -18,4 +18,4 @@ def save_model_local(
     AutoTokenizer.from_pretrained(model_id).save_pretrained(tokenizer_path)
 
 
-# save_model_local(model_id="xlm-roberta-large")
+save_model_local(model_id="deepset/gbert-base")
