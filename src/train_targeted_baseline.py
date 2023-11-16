@@ -1,50 +1,34 @@
-import wandb
-from dsl.models import MultiClassModule
+import yaml
+from dsl.models import MultiClassAdapterModule, MultiClassPEFTModule
 from dsl.runner import train_and_eval
 
-optimizer_config = {
-    "optimizer": "SGD",
-    "learning_rate": 1e-4,
-    "momentum": 0.9,
-    "weight_decay": 1e-5,
-}
+import wandb
 
-training_config = {
-    "epochs": 15,
-    "batch_size": 16,
-    "dataset_portion": None,
-    "logging_period": 512,
-    "checkpoint_period": 1,
-    "examples_to_log": 100,
-    "log_model_to_wandb": True,
-    "class_weight": "effective_num",
-    "beta": 0.999,
-}
+config = {}
+with open("configs/defaults.yaml") as f:
+    base_config = yaml.load(f, Loader=yaml.FullLoader)
+    config.update(base_config)
+with open("configs/targeted/defaults.yaml") as f:
+    toxicity_config = yaml.load(f, Loader=yaml.FullLoader)
+    config.update(toxicity_config)
 
-model_config = {
-    "model_name": "toxicity-detection-baseline",
-    "model_directory": "/cluster/scratch/oovcharenko/models",
-    "model": "xml-roberta-large",
-    "layers_to_freeze": list(range(11)),
-}
-
-data_config = {
-    "train_data": "data/processed_comments_train_v1.csv",
-    "evaluation_data": "data/processed_comments_evaluation_v1.csv",
-    "validation_split": 0.1,
-}
-
-wandb.init(
-    project="targeted-detection-baseline",
-    config={
-        "seed": 42,
-        "class_names": ["non_targeted", "targeted"],
+config.update(
+    {
+        "model_directory": "/cluster/scratch/oovcharenko/models",
+        "train_data": "data/processed_comments_train_v3.csv",
+        "evaluation_data": "data/processed_comments_evaluation_v3.csv",
+        "base_model": "xlm-roberta-large",
+        "model": "toxicity-detection-baseline",
+        "learning_rate": 1e-4,
+        "optimizer": "adam",
+        "mixed_precision": None,
+        "batch_size": 16,
+        "logging_period": 512,
+        "epochs": 5,
     }
-    | data_config
-    | optimizer_config
-    | training_config
-    | model_config,
 )
 
-model = MultiClassModule(wandb.config)
+wandb.init(project="toxicity-detection", config=config)
+
+model = MultiClassPEFTModule(wandb.config)
 train_and_eval(model, wandb.config)
