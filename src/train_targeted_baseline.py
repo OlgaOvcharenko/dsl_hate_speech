@@ -23,8 +23,8 @@ training_config = {
 
 model_config = {
     "model_name": "toxicity-detection-baseline",
-    "model_directory": "/cluster/scratch/ewybitul/models",
-    "model": "Hate-speech-CNERG/dehatebert-mono-german_labels=2",
+    "model_directory": "/cluster/scratch/oovcharenko/models",
+    "model": "xml-roberta-large",
     "layers_to_freeze": list(range(11)),
 }
 
