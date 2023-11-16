@@ -172,10 +172,12 @@ test = test[test.targeted == 1]
 print('Read file.')
 
 
-classes_ger = ["geschlecht", "alter", "sexualitat", "religion", "nationalitaet", 
+classes_ger = [
+        #"geschlecht", "alter", "sexualitat", "religion", "nationalitaet", 
                "behinderung", "sozialer status", "politische ansichten",  "aussehen"]
 
-classes_eng = ["gender", "age", "sexuality", "religion", "nationality", 
+classes_eng = [
+        #"gender", "age", "sexuality", "religion", "nationality", 
                "disability", "social_status", "political_views", "appearance"]
 
 for e, g in zip(classes_eng, classes_ger):
