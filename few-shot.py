@@ -124,7 +124,7 @@ def train_few_binary(train, test, comment_col, classes, label_col):
     
     comments_train = []
     for i in range(train.shape[0]):
-        label = classes[0] if train[label_col].iloc[i] == 1 else classes[1]
+        label = classes[0] if train[label_col[0]].iloc[i] == 1 or train[label_col[1]].iloc[i] == 1 else classes[1]
 
         sentence = Sentence(train[comment_col].iloc[i], language_code='de')
         sentence.add_label(label_type, label)
@@ -173,13 +173,17 @@ print('Read file.')
 
 
 classes_ger = [
-        #"geschlecht", "alter", "sexualitat", "religion", "nationalitaet", 
-               "behinderung", "sozialer status", "politische ansichten",  "aussehen"]
+        "geschlecht", "alter", "sexualitat", "religion", "nationalitaet", 
+        "behinderung", "sozialer status", "politische ansichten",  "aussehen"]
 
 classes_eng = [
-        #"gender", "age", "sexuality", "religion", "nationality", 
-               "disability", "social_status", "political_views", "appearance"]
+        "gender", "age", "sexuality", "religion", "nationality", 
+        "disability", "social_status", "political_views", "appearance"]
 
-for e, g in zip(classes_eng, classes_ger):
-    classes_binary = [f"{g} hassrede", f"keine {g} hassrede"]
-    train_few_binary(train, test, comment_col, classes=classes_binary, label_col=e)
+# for e, g in zip(classes_eng, classes_ger):
+#     classes_binary = [f"{g} hassrede", f"keine {g} hassrede"]
+#     train_few_binary(train, test, comment_col, classes=classes_binary, label_col=e)
+
+g = "aussehen oder behinderung"
+classes_binary = [f"{g} hassrede", f"keine {g} hassrede"]
+train_few_binary(train, test, comment_col, classes=classes_binary, label_col=["aussehen", "behinderung"])
