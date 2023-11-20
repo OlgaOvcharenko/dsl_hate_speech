@@ -5,7 +5,7 @@ import jsonlines
 import torch
 import yaml
 from accelerate import Accelerator
-from dsl.dataset import load_dataset
+from datasets import load_dataset
 from peft import LoraConfig  # type: ignore
 from tqdm import tqdm
 from transformers import (
