@@ -18,7 +18,7 @@ from transformers import (
 from trl import SFTTrainer
 
 import wandb
-from dsl.dataset import setup_datasets_2
+from dataset import setup_datasets_2
 
 tqdm.pandas()
 
