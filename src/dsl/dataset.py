@@ -156,7 +156,7 @@ def setup_datasets_2(config: wandb.Config):
         remove_umlauts=config.transform_remove_umlauts,
     )
 
-    return df[train_idx], df[val_idx], comments[train_idx], labels[train_idx], comments[val_idx], labels[val_idx]
+    return df[train_idx], df[val_idx]
 
 
 def setup_datasets(config: wandb.Config, stage: str):

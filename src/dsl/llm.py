@@ -58,13 +58,9 @@ config = wandb.config
 
 
 # Step 2: Load the dataset
-df_train, df_eval, train_comments, train_idx, val_commenst, val_idx  = setup_datasets_2(config)
-print(df_train)
-print(train_comments)
-print(train_idx)
-for row in df_train.iter_rows():
+df_train, df_eval = setup_datasets_2(config)
+for row in df_train.iter_rows(named=True):
     with jsonlines.open("data/llm/train.jsonl", mode="w") as writer:
-        print(row)
         text, label = row["comment_preprocessed_legacy"], row["toxic"]
         prompt = '''Toxic comment is any kind of offensive or denigrating speech against humans based on
         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
@@ -75,7 +71,7 @@ for row in df_train.iter_rows():
         completion = " Yes" if label == 1 else " No"
         writer.write({"prompt": prompt, "completion": completion})
 
-for row in df_eval.iter_rows():
+for row in df_eval.iter_rows(named=True):
     with jsonlines.open("data/llm/eval.jsonl", mode="w") as writer:
         text, label = row["comment_preprocessed_legacy"], row["toxic"]
         prompt = '''Toxic comment is any kind of offensive or denigrating speech against humans based on
