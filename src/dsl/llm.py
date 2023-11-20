@@ -58,7 +58,7 @@ config = wandb.config
 
 
 # Step 2: Load the dataset
-df_train, df_eval, _, _ = setup_datasets_2(config, stage="fit")  # type: ignore
+df_train, df_eval, _, _ = setup_datasets_2(config)
 for row in df_train.iter_rows():
     with jsonlines.open("data/llm/train.jsonl", mode="w") as writer:
         text, label = row["comment_preprocessed_legacy"], row["toxic"]
