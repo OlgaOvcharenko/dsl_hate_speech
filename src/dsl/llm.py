@@ -34,7 +34,7 @@ with open("configs/toxicity/defaults.yaml") as f:
 
 config.update(
     {
-        "model_directory": f"/cluster/scratch/{user}/models",
+        "model_directory": f"/cluster/scratch/{user}/dsl_hate_speech/models",
         "train_data": "data/processed_comments_train_v3.csv",
         "evaluation_data": "data/processed_comments_evaluation_v3.csv",
         "model": "toxicity-detection-llm",
