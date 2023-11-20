@@ -1,7 +1,6 @@
 import re
 from typing import Callable, Optional
 
-import emoji
 import numpy as np
 import polars as pr
 import polars.selectors as cs
