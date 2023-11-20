@@ -34,7 +34,7 @@ requests
 six
 sympy
 tokenizers
-torch==2.0.1+cu118
+torch
 torchmetrics
 tqdm
 transformers
@@ -44,3 +44,9 @@ tzdata
 urllib3
 wandb
 yarl
+jsonlines
+typing-extensions
+sympy
+fsspec
+jinja2
+networkx
