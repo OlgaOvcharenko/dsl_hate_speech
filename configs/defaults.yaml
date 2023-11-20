@@ -15,7 +15,7 @@ use_learning_rate_finder: False
 
 
 # MODEL
-model_directory: "./models"
+model_directory: "./dsl_hate_speech/models"
 
 # TRAINING
 seed: 42
