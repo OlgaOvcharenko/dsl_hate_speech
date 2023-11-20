@@ -10,7 +10,7 @@ from peft import LoraConfig  # type: ignore
 from tqdm import tqdm
 from transformers import (
     AutoModelForCausalLM,
-    # GPTQConfig,
+    GPTQConfig,
     HfArgumentParser,
     TrainingArguments,
 )
@@ -21,6 +21,7 @@ from dsl.datasets import setup_datasets_2
 
 tqdm.pandas()
 
+user = "oovcharenko" if True else "ewybitul"
 
 config = {}
 with open("configs/defaults.yaml") as f:
@@ -32,21 +33,21 @@ with open("configs/toxicity/defaults.yaml") as f:
 
 config.update(
     {
-        "model_directory": "/cluster/scratch/ewybitul/models",
+        "model_directory": f"/cluster/scratch/{user}/models",
         "train_data": "data/processed_comments_train_v3.csv",
         "evaluation_data": "data/processed_comments_evaluation_v3.csv",
         "model": "toxicity-detection-llm",
         "early_stopping_enabled": False,
-        "early_stopping_epoch": 2,
+        "early_stopping_epoch": 3,
         "early_stopping_metric": "validation/loss",
         "early_stopping_threshold": 0.37,
-        "epochs": 4,
+        "epochs": 5,
     }
 )
 wandb.init(project="toxicity-detection-llm", config=config)
 
 match wandb.config["base_model"]:
-    case "Hate-speech-CNERG/dehatebert-mono-german_labels=2":
+    case "Hate-speech-CNERG/dehatebert-mono-german":
         wandb.config.update(
             {"transform_remove_umlauts": True, "transform_lowercase": True},
             allow_val_change=True,
@@ -62,7 +63,7 @@ for row in df_train.iter_rows():
         text, label = row["comment_preprocessed_legacy"], row["toxic"]
         prompt = '''Toxic comment is any kind of offensive or denigrating speech against humans based on
         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
-        Respond with yes if the following tweet is toxic, else respond with no. Do not respond with anything else."{}"'''.format(
+        Respond with yes if the following comment is toxic, else respond with no. Do not respond with anything else."{}"'''.format(
             text
         )
 
@@ -199,7 +200,7 @@ else:
 
 
 model = AutoModelForCausalLM.from_pretrained(
-    "https://huggingface.co/TheBloke/Mistral-7B-v0.1-AWQ",
+    "TheBloke/Mistral-7B-v0.1-AWQ",
     # script_args.model_name,
     quantization_config=quantization_config,
     device_map=device_map,
