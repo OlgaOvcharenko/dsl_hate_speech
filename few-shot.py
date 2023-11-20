@@ -186,4 +186,4 @@ classes_eng = [
 
 g = "aussehen oder behinderung"
 classes_binary = [f"{g} hassrede", f"keine {g} hassrede"]
-train_few_binary(train, test, comment_col, classes=classes_binary, label_col=["aussehen", "behinderung"])
+train_few_binary(train, test, comment_col, classes=classes_binary, label_col=["appearance", "disability"])
