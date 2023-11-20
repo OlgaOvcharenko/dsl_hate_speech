@@ -118,7 +118,7 @@ class ScriptArguments:
         default=16, metadata={"help": "the number of gradient accumulation steps"}
     )
     load_in_8bit: Optional[bool] = field(
-        default=False, metadata={"help": "load the model in 8 bits precision"}
+        default=True, metadata={"help": "load the model in 8 bits precision"}
     )
     load_in_4bit: Optional[bool] = field(
         default=False, metadata={"help": "load the model in 4 bits precision"}
