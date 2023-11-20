@@ -132,7 +132,7 @@ def train_few_binary(train, test, comment_col, classes, label_col):
     
     comments_test = []
     for i in range(test.shape[0]):
-        label = classes[0] if test[label_col].iloc[i] == 1 else classes[1]
+        label = classes[0] if test[label_col[0]].iloc[i] == 1 or test[label_col[1]].iloc[i] == 1 else classes[1]
 
         sentence = Sentence(test[comment_col].iloc[i], language_code='de')
         sentence.add_label(label_type, label)
