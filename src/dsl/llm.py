@@ -10,7 +10,8 @@ from peft import LoraConfig  # type: ignore
 from tqdm import tqdm
 from transformers import (
     AutoModelForCausalLM,
-    GPTQConfig,
+    BitsAndBytesConfig,
+    # GPTQConfig,
     HfArgumentParser,
     TrainingArguments,
 )
@@ -180,11 +181,15 @@ script_args = parser.parse_args_into_dataclasses()[0]
 if script_args.load_in_8bit and script_args.load_in_4bit:
     raise ValueError("You can't load the model in 8 bits and 4 bits at the same time")
 elif script_args.load_in_8bit or script_args.load_in_4bit:
-    quantization_config = GPTQConfig(
-        bits=4,
-        group_size=128,
-        dataset="c4",
-        desc_act=False,
+    # quantization_config = GPTQConfig(
+    #     bits=4,
+    #     group_size=128,
+    #     dataset="c4",
+    #     desc_act=False,
+    # )
+    quantization_config = BitsAndBytesConfig(
+        load_in_8bit=script_args.load_in_8bit, 
+        load_in_4bit=script_args.load_in_4bit
     )
     # Copy the model to each device
     device_map = (
