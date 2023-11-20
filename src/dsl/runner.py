@@ -1,7 +1,7 @@
 import torch
 
 import wandb
-from dsl.datasets import (
+from dsl.dataset import (
     class_weights_eff_num,
     class_weights_inverse_frequency,
     setup_datasets,

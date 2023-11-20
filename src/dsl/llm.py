@@ -5,7 +5,7 @@ import jsonlines
 import torch
 import yaml
 from accelerate import Accelerator
-from datasets import load_dataset  # type: ignore
+from dsl.dataset import load_dataset
 from peft import LoraConfig  # type: ignore
 from tqdm import tqdm
 from transformers import (
@@ -17,7 +17,7 @@ from transformers import (
 from trl import SFTTrainer
 
 import wandb
-from dsl.datasets import setup_datasets_2
+from dsl.dataset import setup_datasets_2
 
 tqdm.pandas()
 
