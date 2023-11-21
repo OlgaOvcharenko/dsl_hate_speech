@@ -211,7 +211,7 @@ model = AutoModelForCausalLM.from_pretrained(
 
 # Step 2: Get datasets
 dataset = load_dataset(script_args.dataset_name, split="train")
-
+print(dataset)
 
 # Step 3: Define the training arguments
 training_args = TrainingArguments(
