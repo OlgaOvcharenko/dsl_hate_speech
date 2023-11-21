@@ -69,7 +69,10 @@ with jsonlines.open("data/llm/train.jsonl", mode="w") as writer:
         )
 
         completion = " Yes" if label == 1 else " No"
-        writer.write({"prompt": prompt, "completion": completion})
+        text = "<s>" + "[INST]" + text + "[/INST]" + completion + "</s>"
+        writer.write({"text": text})
+
+        # writer.write({"prompt": prompt, "completion": completion})
 
 with jsonlines.open("data/llm/eval.jsonl", mode="w") as writer:
     for row in df_eval.iter_rows(named=True):
@@ -81,7 +84,10 @@ with jsonlines.open("data/llm/eval.jsonl", mode="w") as writer:
         )
 
         completion = " Yes" if label == 1 else " No"
-        writer.write({"prompt": prompt, "completion": completion})
+        text = "<s>" + "[INST]" + text + "[/INST]" + completion + "</s>"
+        writer.write({"text": text})
+
+        # writer.write({"prompt": prompt, "completion": completion})
 
 # df_train.write_json("data/llm/train.json", row_oriented=True)
 # df_eval.write_json("data/llm/eval.json", row_oriented=True)
@@ -105,7 +111,7 @@ class ScriptArguments:
         default="facebook/opt-350m", metadata={"help": "the model name"}
     )
     log_with: Optional[str] = field(
-        default="none", metadata={"help": "use 'wandb' to log with wandb"}
+        default="wandb", metadata={"help": "use 'wandb' to log with wandb"}
     )
     learning_rate: Optional[float] = field(
         default=1.41e-5, metadata={"help": "the learning rate"}
