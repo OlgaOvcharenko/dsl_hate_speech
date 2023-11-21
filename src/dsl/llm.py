@@ -192,11 +192,7 @@ elif script_args.load_in_8bit or script_args.load_in_4bit:
         load_in_4bit=script_args.load_in_4bit
     )
     # Copy the model to each device
-    device_map = (
-        {"": f"xpu:{Accelerator().local_process_index}"}
-        if is_xpu_available()
-        else {"": Accelerator().local_process_index}
-    )
+    device_map = "auto"
     torch_dtype = torch.bfloat16
 else:
     device_map = None
