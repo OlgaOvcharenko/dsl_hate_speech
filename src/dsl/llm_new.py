@@ -126,7 +126,7 @@ with jsonlines.open("data/llm/eval.jsonl", mode="w") as writer:
 
         writer.write({"prompt": prompt})
 
-data = load_dataset("data/llm/train.jsonl")
+data = load_dataset("data/llm/")
 print(data)
 data = data.map(lambda samples: tokenizer(samples['prompt']), batched=True)
 print(data)
