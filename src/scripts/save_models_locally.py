@@ -21,4 +21,4 @@ def save_model_local(
     AutoTokenizer.from_pretrained(model_id).save_pretrained(tokenizer_path)
 
 
-save_model_local(model_id="mistralai/Mistral-7B-v0.1")
+save_model_local(model_id="facebook/opt-6.7b")

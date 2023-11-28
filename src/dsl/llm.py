@@ -14,6 +14,7 @@ from transformers import (
     # GPTQConfig,
     HfArgumentParser,
     TrainingArguments,
+    AutoTokenizer
 )
 from trl import SFTTrainer
 
@@ -108,7 +109,7 @@ class ScriptArguments:
     )
 
     model_name: Optional[str] = field(
-        default="facebook/opt-350m", metadata={"help": "the model name"}
+        default="meta-llama/Llama-2-7b-hf", metadata={"help": "the model name"}
     )
     log_with: Optional[str] = field(
         default="wandb", metadata={"help": "use 'wandb' to log with wandb"}
@@ -207,13 +208,14 @@ else:
 
 
 model = AutoModelForCausalLM.from_pretrained(
-    "mistralai/Mistral-7B-v0.1",
+    "meta-llama/Llama-2-7b-hf",
     quantization_config=quantization_config,
     device_map=device_map,
     trust_remote_code=script_args.trust_remote_code,
     torch_dtype=torch_dtype,
     use_auth_token=script_args.use_auth_token,
 )
+tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
 
 # Step 2: Get datasets
 dataset = load_dataset(script_args.dataset_name, split="train")

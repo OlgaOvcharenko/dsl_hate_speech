@@ -125,7 +125,6 @@ def _split_2(comments, labels, config, size=None):
 
 
 def setup_datasets_2(config: wandb.Config):
-    tokenizer = _get_tokenizer(config.model_directory, config.base_model)
     df, comments, labels = _load_data(config.train_data, config.class_names)
     if len(config.class_names) > 2:
         # Only train on toxic comments
@@ -139,22 +138,6 @@ def setup_datasets_2(config: wandb.Config):
         comments, labels = comments[val_idx], labels[val_idx]
 
     train_idx, val_idx = _split_2(comments, labels, config)
-    train_dataset = CommentDataset(
-        comments[train_idx],
-        labels[train_idx],
-        tokenizer,
-        lowercase=config.transform_lowercase,
-        tweet_clean=config.transform_clean,
-        remove_umlauts=config.transform_remove_umlauts,
-    )
-    val_dataset = CommentDataset(
-        comments[val_idx],
-        labels[val_idx],
-        tokenizer,
-        lowercase=config.transform_lowercase,
-        tweet_clean=config.transform_clean,
-        remove_umlauts=config.transform_remove_umlauts,
-    )
 
     return df[train_idx], df[val_idx]
 
