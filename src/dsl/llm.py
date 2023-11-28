@@ -207,12 +207,12 @@ else:
 
 
 model = AutoModelForCausalLM.from_pretrained(
-    "TheBloke/Mistral-7B-v0.1-AWQ",
-    # quantization_config=quantization_config,
-    # device_map=device_map,
-    # trust_remote_code=script_args.trust_remote_code,
-    # torch_dtype=torch_dtype,
-    # use_auth_token=script_args.use_auth_token,
+    "mistralai/Mistral-7B-v0.1",
+    quantization_config=quantization_config,
+    device_map=device_map,
+    trust_remote_code=script_args.trust_remote_code,
+    torch_dtype=torch_dtype,
+    use_auth_token=script_args.use_auth_token,
 )
 
 # Step 2: Get datasets
