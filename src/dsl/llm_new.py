@@ -102,7 +102,7 @@ model = get_peft_model(model, config)
 print_trainable_parameters(model)
 
 
-df_train, df_eval = setup_datasets_2(config)
+df_train, df_eval = setup_datasets_2(config_local)
 with jsonlines.open("data/llm/train.jsonl", mode="w") as writer:
     for row in df_train.iter_rows(named=True):
         text, label = row["comment_preprocessed_legacy"], row["toxic"]
