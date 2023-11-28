@@ -112,22 +112,22 @@ df_train, df_eval = setup_datasets_2(config_local)
 with jsonlines.open("data/llm/train.jsonl", mode="w") as writer:
     for row in df_train.iter_rows(named=True):
         text, label = row["comment_preprocessed_legacy"], row["toxic"]
-        completion = "toxic" if label == 1 else "not toxic"
+        completion = "yes" if label == 1 else "no"
         prompt = '''Toxic comment is any kind of offensive or denigrating speech against humans based on
         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
-        This comment is {}: "{}"'''.format(
-            completion, text
+        Is this comment toxic "{}"? Answer yes or no. The answer is {}.'''.format(
+            text, completion
         )
 
         writer.write({"prompt": prompt})
 
 with jsonlines.open("data/llm/eval.jsonl", mode="w") as writer:
     for row in df_eval.iter_rows(named=True):
-        completion = "toxic" if label == 1 else "not toxic"
+        completion = "yes" if label == 1 else "no"
         prompt = '''Toxic comment is any kind of offensive or denigrating speech against humans based on
         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
-        This comment is {}: "{}"'''.format(
-            completion, text
+        Is this comment toxic "{}"? Answer yes or no. The answer is {}.'''.format(
+            text, completion
         )
 
         writer.write({"prompt": prompt})
@@ -142,6 +142,7 @@ trainer = transformers.Trainer(
     model=model, 
     train_dataset=data['train'],
     args=transformers.TrainingArguments(
+        num_train_epochs=5,
         per_device_train_batch_size=4, 
         gradient_accumulation_steps=4,
         warmup_steps=100, 
@@ -163,10 +164,15 @@ with torch.autocast("cuda"):
 # print(data)
 # data = data.map(lambda samples: tokenizer(samples['quote']), batched=True)
 # print(data)
+text = "Gute Idee und die Hassprediger auch gleich ausweisen und keine dieser Sorte mehr ins Land lassen. Gleichzeitig aber auch ein europaweites Verzeichnis pädophiler Pfaffen und diesen ein Berufsverbot auferlegen. Wird endlich Zeit dass in diesen Religionen aufgeräumt wird!"
+prompt = '''Toxic comment is any kind of offensive or denigrating speech against humans based on
+        their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
+        Is comment "{}" toxic? Answer with yes or no.'''.format(
+            text
+        )
+batch = tokenizer(prompt, return_tensors='pt')
 
-# batch = tokenizer("Two things are infinite: ", return_tensors='pt')
+with torch.cuda.amp.autocast():
+  output_tokens = model.generate(**batch, max_new_tokens=50)
 
-# with torch.cuda.amp.autocast():
-#   output_tokens = model.generate(**batch, max_new_tokens=50)
-
-# print('\n\n', tokenizer.decode(output_tokens[0], skip_special_tokens=True))
+print('\n\n', tokenizer.decode(output_tokens[0], skip_special_tokens=True))
