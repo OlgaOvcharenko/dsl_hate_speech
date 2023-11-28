@@ -149,7 +149,8 @@ trainer = transformers.Trainer(
     data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False)
 )
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
-trainer.train()
+with torch.autocast("cuda"):
+    trainer.train()
 
 
 # # Inference
