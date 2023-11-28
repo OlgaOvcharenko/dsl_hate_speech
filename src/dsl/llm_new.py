@@ -49,7 +49,7 @@ match wandb.config["base_model"]:
             allow_val_change=True,
         )
 
-config = wandb.config
+config_local = wandb.config
 
 
 model_path = "meta-llama/Llama-2-7b-hf"
