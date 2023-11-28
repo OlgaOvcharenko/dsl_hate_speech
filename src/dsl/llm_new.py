@@ -19,15 +19,15 @@ login(token='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', add_to_git_credential=True)
 
 user = "oovcharenko" if True else "ewybitul"
 
-config = {}
+config_local = {}
 with open("configs/defaults.yaml") as f:
     base_config = yaml.load(f, Loader=yaml.FullLoader)
-    config.update(base_config)
+    config_local.update(base_config)
 with open("configs/toxicity/defaults.yaml") as f:
     toxicity_config = yaml.load(f, Loader=yaml.FullLoader)
-    config.update(toxicity_config)
+    config_local.update(toxicity_config)
 
-config.update(
+config_local.update(
     {
         "model_directory": f"/cluster/scratch/{user}/dsl_hate_speech/models",
         "train_data": "data/processed_comments_train_v3.csv",
@@ -40,7 +40,7 @@ config.update(
         "epochs": 5,
     }
 )
-wandb.init(project="toxicity-detection-llm", config=config)
+wandb.init(project="toxicity-detection-llm", config=config_local)
 
 match wandb.config["base_model"]:
     case "Hate-speech-CNERG/dehatebert-mono-german":
@@ -106,36 +106,29 @@ df_train, df_eval = setup_datasets_2(config)
 with jsonlines.open("data/llm/train.jsonl", mode="w") as writer:
     for row in df_train.iter_rows(named=True):
         text, label = row["comment_preprocessed_legacy"], row["toxic"]
+        completion = "toxic" if label == 1 else "not toxic"
         prompt = '''Toxic comment is any kind of offensive or denigrating speech against humans based on
         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
-        Respond with yes if the following comment is toxic, else respond with no. Do not respond with anything else."{}"'''.format(
-            text
+        This comment is {}: "{}"'''.format(
+            completion, text
         )
 
-        completion = " Yes" if label == 1 else " No"
-        # text = "<s>" + "[INST]" + text + "[/INST]" + completion + "</s>"
-        # writer.write({"text": text})
-
-        writer.write({"prompt": prompt, "completion": completion})
+        writer.write({"prompt": prompt})
 
 with jsonlines.open("data/llm/eval.jsonl", mode="w") as writer:
     for row in df_eval.iter_rows(named=True):
-        text, label = row["comment_preprocessed_legacy"], row["toxic"]
+        completion = "toxic" if label == 1 else "not toxic"
         prompt = '''Toxic comment is any kind of offensive or denigrating speech against humans based on
         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
-        Respond with yes if the following tweet is toxic, else respond with no. Do not respond with anything else."{}"'''.format(
-            text
+        This comment is {}: "{}"'''.format(
+            completion, text
         )
 
-        completion = " Yes" if label == 1 else " No"
-        # text = "<s>" + "[INST]" + text + "[/INST]" + completion + "</s>"
-        # writer.write({"text": text})
-
-        writer.write({"prompt": prompt, "completion": completion})
+        writer.write({"prompt": prompt})
 
 data = load_dataset("data/llm/train")
 print(data)
-data = data.map(lambda samples: tokenizer(samples['quote']), batched=True)
+data = data.map(lambda samples: tokenizer(samples['prompt']), batched=True)
 print(data)
 
 
