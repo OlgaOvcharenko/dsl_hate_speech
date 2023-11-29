@@ -141,12 +141,13 @@ print(data)
 trainer = transformers.Trainer(
     model=model, 
     train_dataset=data['train'],
+    eval_dataset=data['test'],
     args=transformers.TrainingArguments(
         num_train_epochs=5,
         per_device_train_batch_size=4, 
         gradient_accumulation_steps=4,
         warmup_steps=100, 
-        max_steps=200, 
+        # max_steps=200, 
         learning_rate=2e-4, 
         fp16=True,
         logging_steps=1, 
