@@ -119,7 +119,7 @@ with jsonlines.open("data/llm/train.jsonl", mode="w") as writer:
             text, completion
         )
 
-        writer.write({"prompt": prompt})
+        writer.write({"text": prompt})
 
 with jsonlines.open("data/llm/eval.jsonl", mode="w") as writer:
     for row in df_eval.iter_rows(named=True):
@@ -130,7 +130,7 @@ with jsonlines.open("data/llm/eval.jsonl", mode="w") as writer:
             text, completion
         )
 
-        writer.write({"prompt": prompt})
+        writer.write({"text": prompt})
 
 data = load_dataset("data/llm/")
 print(data)
