@@ -134,7 +134,7 @@ with jsonlines.open("data/llm/eval.jsonl", mode="w") as writer:
 
 data = load_dataset("data/llm/")
 print(data)
-data = data.map(lambda samples: tokenizer(samples['prompt']), batched=True)
+data = data.map(lambda samples: tokenizer(samples['text']), batched=True)
 print(data)
 
 
