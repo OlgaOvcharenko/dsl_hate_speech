@@ -15,4 +15,7 @@ module load eth_proxy gcc/8.2.0 python_gpu/3.11.2
 source ".venv/bin/activate"
 
 export WANDB__SERVICE_WAIT=300
+
+echo "$1"
+
 python "$1"

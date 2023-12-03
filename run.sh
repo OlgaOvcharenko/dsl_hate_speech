@@ -14,6 +14,4 @@ source ".venv/bin/activate"
 
 export WANDB__SERVICE_WAIT=300
 
-echo "$1"
-
 python "$1"
