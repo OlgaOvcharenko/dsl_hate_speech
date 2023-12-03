@@ -16,6 +16,15 @@ source ".venv/bin/activate"
 
 export WANDB__SERVICE_WAIT=300
 
+echo "$(date)"
 echo "$1"
 
-python "$1"
+python "$1" &
+
+sleep 10 
+
+nvidia-smi
+
+wait
+
+echo "$(date)"
