@@ -125,6 +125,7 @@ with jsonlines.open("data/llm/train.jsonl", mode="w") as writer:
 
 with jsonlines.open("data/llm/validation.jsonl", mode="w") as writer:
     for row in df_eval.iter_rows(named=True):
+        text, label = row["comment_preprocessed_legacy"], row["toxic"]
         completion = "yes" if label == 1 else "no"
         prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
@@ -136,6 +137,7 @@ with jsonlines.open("data/llm/validation.jsonl", mode="w") as writer:
 
 with jsonlines.open("data/llm/test.jsonl", mode="w") as writer:
     for row in df_eval.iter_rows(named=True):
+        text, label = row["comment_preprocessed_legacy"], row["toxic"]
         completion = "yes" if label == 1 else "no"
         prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
@@ -154,7 +156,7 @@ print(data)
 trainer = transformers.Trainer(
     model=model, 
     train_dataset=data['train'],
-    eval_dataset=data['evaluation'],
+    eval_dataset=data['validation'],
     args=transformers.TrainingArguments(
         num_train_epochs=0.01,
         per_device_train_batch_size=4, 
@@ -171,9 +173,9 @@ trainer = transformers.Trainer(
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
 with torch.autocast("cuda"):
     trainer.train()
+    trainer.evaluate()
 
-trainer.predict(data["test"])
-p, l, m = trainer.predict()
+p, l, m = trainer.predict(data["test"])
 np.savetxt("data/predict_binary.csv", p, delimiter = ",")
 
 # # Inference
