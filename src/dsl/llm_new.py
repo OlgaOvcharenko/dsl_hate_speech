@@ -182,9 +182,9 @@ np.savetxt("data/predict_binary.csv", p, delimiter = ",")
 # data = data.map(lambda samples: tokenizer(samples['quote']), batched=True)
 # print(data)
 text = "Gute Idee und die Hassprediger auch gleich ausweisen und keine dieser Sorte mehr ins Land lassen. Gleichzeitig aber auch ein europaweites Verzeichnis pädophiler Pfaffen und diesen ein Berufsverbot auferlegen. Wird endlich Zeit dass in diesen Religionen aufgeräumt wird!"
-prompt = '''Toxic comment is any kind of offensive or denigrating speech against humans based on
+prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
-        Is comment "{}" toxic? Answer with yes or no.'''.format(
+        \nINPUT: Is this comment toxic "{}"? Answer only yes or no.'''.format(
             text
         )
 batch = tokenizer(prompt, return_tensors='pt')
