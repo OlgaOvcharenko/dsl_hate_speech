@@ -113,21 +113,32 @@ with jsonlines.open("data/llm/train.jsonl", mode="w") as writer:
     for row in df_train.iter_rows(named=True):
         text, label = row["comment_preprocessed_legacy"], row["toxic"]
         completion = "yes" if label == 1 else "no"
-        prompt = '''Toxic comment is any kind of offensive or denigrating speech against humans based on
+        prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
-        Is this comment toxic "{}"? Answer yes or no. The answer is {}.'''.format(
+        \nINPUT: Is this comment toxic "{}"? Answer only yes or no. \nOUTPUT: "{}".'''.format(
             text, completion
         )
 
         writer.write({"text": prompt})
 
-with jsonlines.open("data/llm/eval.jsonl", mode="w") as writer:
+with jsonlines.open("data/llm/validation.jsonl", mode="w") as writer:
     for row in df_eval.iter_rows(named=True):
         completion = "yes" if label == 1 else "no"
-        prompt = '''Toxic comment is any kind of offensive or denigrating speech against humans based on
+        prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
-        Is this comment toxic "{}"? Answer yes or no. The answer is {}.'''.format(
+        \nINPUT: Is this comment toxic "{}"? Answer only yes or no. \n OUTPUT: "{}".'''.format(
             text, completion
+        )
+
+        writer.write({"text": prompt})
+
+with jsonlines.open("data/llm/test.jsonl", mode="w") as writer:
+    for row in df_eval.iter_rows(named=True):
+        completion = "yes" if label == 1 else "no"
+        prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
+        their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
+        \nINPUT: Is this comment toxic "{}"? Answer only yes or no.'''.format(
+            text
         )
 
         writer.write({"text": prompt})
@@ -143,7 +154,7 @@ trainer = transformers.Trainer(
     train_dataset=data['train'],
     eval_dataset=data['test'],
     args=transformers.TrainingArguments(
-        num_train_epochs=5,
+        num_train_epochs=0.01,
         per_device_train_batch_size=4, 
         gradient_accumulation_steps=4,
         warmup_steps=100, 
@@ -159,6 +170,8 @@ model.config.use_cache = False  # silence the warnings. Please re-enable for inf
 with torch.autocast("cuda"):
     trainer.train()
 
+trainer.predict(data["test"]])
+p, l, m = trainer.predict()
 
 # # Inference
 # data = load_dataset("data/llm/eval")

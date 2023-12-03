@@ -6,7 +6,7 @@
 #SBATCH --gres=gpumem:32G
 #SBATCH --cpus-per-task=6
 #SBATCH --mem-per-cpu=12G
-#SBATCH --time=8:00:00
+#SBATCH --time=1:00:00
 
 CONSUL_HTTP_ADDR=""
 
