@@ -1,5 +1,7 @@
 import os
 
+import numpy as np
+
 from dataset import setup_datasets_2
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 import torch
@@ -152,7 +154,7 @@ print(data)
 trainer = transformers.Trainer(
     model=model, 
     train_dataset=data['train'],
-    eval_dataset=data['test'],
+    eval_dataset=data['evaluation'],
     args=transformers.TrainingArguments(
         num_train_epochs=0.01,
         per_device_train_batch_size=4, 
@@ -170,8 +172,9 @@ model.config.use_cache = False  # silence the warnings. Please re-enable for inf
 with torch.autocast("cuda"):
     trainer.train()
 
-trainer.predict(data["test"]])
+trainer.predict(data["test"])
 p, l, m = trainer.predict()
+np.savetxt("data/predict_binary.csv", p, delimiter = ",")
 
 # # Inference
 # data = load_dataset("data/llm/eval")
