@@ -172,4 +172,5 @@ models_local/
 models/
 copy_model.sh
 
+outputs
 .idea
