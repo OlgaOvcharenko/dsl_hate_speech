@@ -111,22 +111,22 @@ config = LoraConfig(
 model = get_peft_model(model, config)
 print_trainable_parameters(model)
 
-max_memory = get_balanced_memory(
-    model,
-    max_memory=None,
-    no_split_module_classes=["DecoderLayer", "Attention", "MLP", "LayerNorm", "Linear"],
-    dtype='float16',
-    low_zero=False,
-)
+# max_memory = get_balanced_memory(
+#     model,
+#     max_memory=None,
+#     no_split_module_classes=["DecoderLayer", "Attention", "MLP", "LayerNorm", "Linear"],
+#     dtype='float16',
+#     low_zero=False,
+# )
 
-device_map = infer_auto_device_map(
-    model,
-    max_memory=max_memory,
-    no_split_module_classes=["DecoderLayer", "Attention", "MLP", "LayerNorm", "Linear"],
-    dtype='float16'
-)
+# device_map = infer_auto_device_map(
+#     model,
+#     max_memory=max_memory,
+#     no_split_module_classes=["DecoderLayer", "Attention", "MLP", "LayerNorm", "Linear"],
+#     dtype='float16'
+# )
 
-model = dispatch_model(model, device_map=device_map)
+# model = dispatch_model(model, device_map=device_map)
 
 
 df_train, df_eval = setup_datasets_2(config_local)
