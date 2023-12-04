@@ -14,6 +14,8 @@ from datasets import load_dataset
 import jsonlines
 import wandb
 import yaml
+from accelerate import dispatch_model, infer_auto_device_map
+from accelerate.utils import get_balanced_memory
 
 from huggingface_hub import login
 login(token='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', add_to_git_credential=True)
@@ -109,6 +111,23 @@ config = LoraConfig(
 model = get_peft_model(model, config)
 print_trainable_parameters(model)
 
+max_memory = get_balanced_memory(
+    model,
+    max_memory=None,
+    no_split_module_classes=["DecoderLayer", "Attention", "MLP", "LayerNorm", "Linear"],
+    dtype='float16',
+    low_zero=False,
+)
+
+device_map = infer_auto_device_map(
+    model,
+    max_memory=max_memory,
+    no_split_module_classes=["DecoderLayer", "Attention", "MLP", "LayerNorm", "Linear"],
+    dtype='float16'
+)
+
+model = dispatch_model(model, device_map=device_map)
+
 
 df_train, df_eval = setup_datasets_2(config_local)
 with jsonlines.open("data/llm/train.jsonl", mode="w") as writer:
@@ -152,12 +171,7 @@ print(data)
 data = data.map(lambda samples: tokenizer(samples['text']), batched=True)
 print(data)
 
-
-trainer = transformers.Trainer(
-    model=model, 
-    train_dataset=data['train'],
-    eval_dataset=data['validation'],
-    args=transformers.TrainingArguments(
+training_args = transformers.TrainingArguments(
         num_train_epochs=0.01,
         per_device_train_batch_size=4, 
         gradient_accumulation_steps=4,
@@ -167,9 +181,19 @@ trainer = transformers.Trainer(
         fp16=True,
         logging_steps=1, 
         output_dir='outputs'
-    ),
+    )
+
+trainer = transformers.Trainer(
+    model=model, 
+    train_dataset=data['train'],
+    eval_dataset=data['validation'],
+    args=training_args,
     data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False)
 )
+
+print("parallel_mode: ", training_args.parallel_mode)
+print("n_gpus: ", training_args.n_gpu)
+
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
 with torch.autocast("cuda"):
     trainer.train()
