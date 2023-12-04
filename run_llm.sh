@@ -3,7 +3,7 @@
 #SBATCH --output=logs/log-%j.out
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=2
-#SBATCH --gres=gpumem:32G
+#SBATCH --gres=gpumem:24G
 #SBATCH --cpus-per-task=6
 #SBATCH --mem-per-cpu=12G
 #SBATCH --time=01:00:00
@@ -21,7 +21,7 @@ echo "$1"
 
 nvidia-smi
 
-# python -m torch.distributed.launch "$1"
-torchrun --nproc_per_node 2 "$1"
+python -m torch.distributed.launch "$1"
+#torchrun --nproc_per_node 2 "$1"
 
 echo "$(date)"
