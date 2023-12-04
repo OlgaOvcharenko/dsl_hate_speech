@@ -2,11 +2,11 @@
 
 #SBATCH --output=logs/log-%j.out
 #SBATCH --nodes=1
-#SBATCH --gpus-per-node=4
+#SBATCH --gpus-per-node=2
 #SBATCH --gres=gpumem:32G
 #SBATCH --cpus-per-task=6
 #SBATCH --mem-per-cpu=12G
-#SBATCH --time=24:00:00
+#SBATCH --time=01:00:00
 
 CONSUL_HTTP_ADDR=""
 
@@ -19,12 +19,8 @@ export WANDB__SERVICE_WAIT=300
 echo "$(date)"
 echo "$1"
 
-python "$1" &
-
-sleep 10 
-
 nvidia-smi
 
-wait
+python -m torch.distributed.launch "$1"
 
 echo "$(date)"

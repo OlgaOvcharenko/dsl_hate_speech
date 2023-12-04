@@ -198,7 +198,8 @@ trainer = transformers.Trainer(
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
 with torch.autocast("cuda"):
     trainer.train()
-    trainer.evaluate()
+    res = trainer.evaluate()
+    print(res)
 
 p, l, m = trainer.predict(data["test"])
 np.savetxt("data/predict_targets.csv", p, delimiter = ",")
