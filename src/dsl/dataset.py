@@ -144,7 +144,7 @@ def setup_datasets_2(config: wandb.Config):
 
 def setup_datasets_targets_only(config: wandb.Config):
     df, comments, labels = _load_data(config.train_data, config.class_names)
-    indices = (df["toxic"] == 1) & (df["targeted"] == 1)
+    indices = df["targeted"] == 1
     df = df[indices]
     comments = comments[indices]
     labels = labels[indices, :]
