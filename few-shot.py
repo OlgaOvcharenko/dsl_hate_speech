@@ -89,7 +89,7 @@ def train_few(train, test, comment_col):
     
     trainer = ModelTrainer(tars, corpus)
     trainer.train(base_path='few_shot/target', 
-                  mini_batch_size=8, 
+                  mini_batch_size=64, 
                   max_epochs=15, 
                   learning_rate=0.001,
                   save_final_model=True,
@@ -117,7 +117,7 @@ def check_results(path_res: str, data: pd.DataFrame):
         plt.savefig(f'plots_zero/{col}.png')
 
 
-def train_few_binary(train, test, comment_col, classes, label_col):
+def train_few_binary(train, test1, test2, comment_col, classes, label_col):
     tars = TARSClassifier.load('tars-base')
     
     label_type = 'target_class'
@@ -131,12 +131,24 @@ def train_few_binary(train, test, comment_col, classes, label_col):
         comments_train.append(sentence)
     
     comments_test = []
-    for i in range(test.shape[0]):
-        label = classes[0] if test[label_col[0]].iloc[i] == 1 or test[label_col[1]].iloc[i] == 1 else classes[1]
+    c_test1 = []
+    for i in range(test1.shape[0]):
+        label = classes[0] if test1[label_col[0]].iloc[i] == 1 or test1[label_col[1]].iloc[i] == 1 else classes[1]
 
-        sentence = Sentence(test[comment_col].iloc[i], language_code='de')
+        sentence = Sentence(test1[comment_col].iloc[i], language_code='de')
+        c_test1.append(test1[comment_col].iloc[i])
         sentence.add_label(label_type, label)
         comments_test.append(sentence)
+
+    comments_test2 = []
+    c_test2 = []
+    for i in range(test2.shape[0]):
+        label = classes[0] if test2[label_col[0]].iloc[i] == 1 or test2[label_col[1]].iloc[i] == 1 else classes[1]
+
+        sentence = Sentence(test2[comment_col].iloc[i], language_code='de')
+        c_test2.append(test2[comment_col].iloc[i])
+        sentence.add_label(label_type, label)
+        comments_test2.append(sentence)
     
     print('Created sentences.')
 
@@ -152,38 +164,49 @@ def train_few_binary(train, test, comment_col, classes, label_col):
     
     trainer = ModelTrainer(tars, corpus)
     trainer.train(base_path=f'few_shot/target/{label_col}', 
-                  mini_batch_size=8, 
-                  max_epochs=15, 
+                  mini_batch_size=64, 
+                  max_epochs=20, 
                   save_final_model=True,
                   create_file_logs=True,
                   create_loss_file=True,
                   learning_rate=0.001,
                   main_evaluation_metric = ("micro avg", "f1-score", "macro f1-score"),
                 )
+    
+    print("Main eval:")
+    res_rand = tars.evaluate(comments_test)
+    print(res_rand)
 
+    print("Repr. eval:")
+    res_expert = tars.evaluate(comments_test2)
+    print(res_expert)
 
-path, path_test = "data/processed_comments_train_v1.csv", "data/processed_comments_evaluation_v1.csv"
+path, path_test1, path_test2 = "data/processed_training_main_v4.csv", "processed_evaluation_main_v4.csv", "data/processed_evaluation_representative_v4.csv",
 comment_col = 'comment'
 train = read_data(path)
 train = train[train.targeted == 1]
 
-test = read_data(path)
-test = test[test.targeted == 1]
-print('Read file.')
+test1 = read_data(path_test1)
+test1 = test1[test1.targeted == 1]
+
+test2 = read_data(path_test2)
+test2 = test2[test2.targeted == 1]
+
+print('Read files.')
 
 
 classes_ger = [
         "geschlecht", "alter", "sexualitat", "religion", "nationalitaet", 
-        "behinderung", "sozialer status", "politische ansichten",  "aussehen"]
+        "behinderung", "sozialer status", "politische ansichten",  "aussehen", "andere"]
 
 classes_eng = [
         "gender", "age", "sexuality", "religion", "nationality", 
-        "disability", "social_status", "political_views", "appearance"]
+        "disability", "social_status", "political_views", "appearance", "other"]
 
-# for e, g in zip(classes_eng, classes_ger):
-#     classes_binary = [f"{g} hassrede", f"keine {g} hassrede"]
-#     train_few_binary(train, test, comment_col, classes=classes_binary, label_col=e)
+for e, g in zip(classes_eng, classes_ger):
+    classes_binary = [f"{g} hassrede", f"keine {g} hassrede"]
+    train_few_binary(train, test1, test2, comment_col, classes=classes_binary, label_col=e)
 
-g = "aussehen oder behinderung"
-classes_binary = [f"{g} hassrede", f"keine {g} hassrede"]
-train_few_binary(train, test, comment_col, classes=classes_binary, label_col=["appearance", "disability"])
+# g = "aussehen oder behinderung"
+# classes_binary = [f"{g} hassrede", f"keine {g} hassrede"]
+# train_few_binary(train, test, comment_col, classes=classes_binary, label_col=["appearance", "disability"])
