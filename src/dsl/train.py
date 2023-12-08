@@ -2,7 +2,6 @@ import time
 from pathlib import Path
 from typing import Callable, Optional
 
-# import bitsandbytes as bnb
 import polars as pr
 import torch
 from accelerate import Accelerator
@@ -10,6 +9,7 @@ from packaging import version
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
 from torchmetrics import MetricCollection
+from transformers import get_cosine_schedule_with_warmup
 
 import wandb
 import wandb.plot
@@ -30,9 +30,14 @@ def _get_optimizer(config: wandb.Config, model: torch.nn.Module):
             params, lr=lr, momentum=config.momentum, nesterov=True
         )
     elif config.optimizer == "adam":
-        optimizer = torch.optim.Adam(params, lr=lr)
-    elif config.optimizer == "adam_8bit":
-        optimizer = bnb.optim.Adam8bit(params, lr=lr)
+        optimizer = torch.optim.Adam(params, lr=lr, betas=(config.beta1, config.beta2))
+    elif config.optimizer == "adamw":
+        optimizer = torch.optim.AdamW(
+            params,
+            lr=lr,
+            betas=(config.beta1, config.beta2),
+            weight_decay=config.weight_decay,
+        )
     else:
         raise ValueError(f"Unknown optimizer {config.optimizer}")
     return optimizer
@@ -93,9 +98,15 @@ def train(
     checkpoint_path.mkdir(parents=True, exist_ok=True)
 
     optimizer = _get_optimizer(config, model)
-    accelerator = Accelerator(mixed_precision=config.mixed_precision)
+    accelerator = Accelerator()  # TODO Add mixed precision config
     model, optimizer, train_loader, val_loader = accelerator.prepare(
         model, optimizer, train_loader, val_loader
+    )
+    total_batch_steps = len(train_loader) * config.epochs
+    scheduler = get_cosine_schedule_with_warmup(
+        optimizer,
+        num_warmup_steps=int(config.warmup_ratio * total_batch_steps),
+        num_training_steps=total_batch_steps,
     )
 
     device = accelerator.device
@@ -127,6 +138,7 @@ def train(
             loss = loss_fn(outputs.logits, labels)
             accelerator.backward(loss.mean())
             optimizer.step()
+            scheduler.step()
 
             preds = outputs.logits.softmax(dim=1)
             train_metrics_vals = train_metrics(
@@ -151,18 +163,19 @@ def train(
                     )
                 else:
                     metrics = {
-                        "train/throughput": example_ct / (time.time() - start_time)
+                        "train/throughput": example_ct / (time.time() - start_time),
+                        "train/lr": scheduler.get_last_lr()[0],
                     }
                     metrics.update(
                         process_metrics(train_metrics_vals, config.class_names)
                     )
                     wandb.log(metrics, step=example_ct)
+
             if (
                 config.use_learning_rate_finder
                 and step == config.learning_rate_finder_steps
             ):
                 return
-
         train_metrics.reset()
 
         val_metrics_vals = _evaluate(
@@ -173,6 +186,7 @@ def train(
             loader=val_loader,
             log_examples=False,
             stage="validation",
+            prefix="validation",
             loss_fn=loss_fn,
             device=device,
         )
@@ -201,7 +215,7 @@ def train(
             config.early_stopping_enabled
             and (epoch + 1) >= config.early_stopping_epoch
             and val_metrics_vals[config.early_stopping_metric]
-            >= config.early_stopping_threshold
+            < config.early_stopping_threshold
         ):
             break
 
@@ -223,13 +237,16 @@ def evaluate(
     comments_text: pr.Series,
     config: wandb.Config,
     loader: DataLoader,
+    prefix: str,
     class_weights: Optional[torch.Tensor] = None,
 ):
-    accelerator = Accelerator(mixed_precision=config.mixed_precision)
+    accelerator = Accelerator()
     model, loader = accelerator.prepare(model, loader)
     device = accelerator.device
 
-    metrics = setup_metrics(len(config.class_names), stage="evaluation").to(device)
+    metrics = setup_metrics(
+        len(config.class_names), stage="evaluation", prefix=prefix
+    ).to(device)
     metric_vals = _evaluate(
         model=model,
         comments_text=comments_text,
@@ -239,6 +256,7 @@ def evaluate(
         examples_to_log=config.examples_to_log,
         class_names=config.class_names,
         stage="evaluation",
+        prefix=prefix,
         loss_fn=_get_loss(len(config.class_names), class_weights),
         device=device,
     )
@@ -254,14 +272,14 @@ def _evaluate(
     log_examples: bool,
     class_names: list[str],
     stage: str,
+    prefix: str,
     loss_fn: Callable,
     device: torch.device,
     examples_to_log: Optional[int] = None,
 ):
     model.eval()
-    # f1_curve = setup_f1_curve(num_labels=len(class_names), stage=stage).to(device)
     if stage == "evaluation":
-        macro_f1 = setup_macro_f1(stage=stage).to(device)
+        macro_f1 = setup_macro_f1(prefix=prefix).to(device)
 
     with torch.inference_mode():
         comments_batched, logits_batched, labels_batched = [], [], []
@@ -281,12 +299,6 @@ def _evaluate(
             )
             if stage == "evaluation":
                 macro_f1.update(preds=preds, target=labels.long())  # type: ignore
-            # f1_curve.update(
-            #     preds=logits.softmax(dim=1),
-            #     target=labels.long()
-            #     if len(class_names) > 2
-            #     else F.one_hot(labels, num_classes=2),
-            # )
 
             if log_examples:
                 comments_batched.append(comments_text[idx.tolist()])
@@ -314,14 +326,13 @@ def _evaluate(
                 true_labels=labels[indices],
                 probabilities=logits.softmax(dim=1),
                 class_names=class_names,
-                stage=stage,
+                prefix=prefix,
             )
 
         metric_values = metrics.compute()
         if stage == "evaluation":
             metric_values.update(macro_f1.compute())  # type: ignore
             macro_f1.reset()  # type: ignore
-        # metric_values.update(f1_curve.compute())
-        # f1_curve.reset()
+
         metrics.reset()
         return process_metrics(metric_values, class_names)

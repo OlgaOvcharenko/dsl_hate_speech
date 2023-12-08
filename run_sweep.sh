@@ -19,7 +19,7 @@ while [[ $# -gt 0 ]]; do
         shift
         ;;
     *)
-        echo "Usage: $0 --count number --config path"
+        echo "Usage: $0 --count number --sweep sweep_id"
         exit 1
         ;;
     esac

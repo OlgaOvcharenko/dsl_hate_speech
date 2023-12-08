@@ -1,9 +1,9 @@
-adapter-transformers
+accelerate
+adapters
 aiohttp
 aiosignal
 async-timeout
 attrs
-black
 certifi
 emoji
 filelock
@@ -13,7 +13,6 @@ huggingface-hub
 charset-normalizer
 idna
 ipykernel
-isort
 iterative-stratification
 Jinja2
 MarkupSafe
@@ -23,24 +22,14 @@ networkx
 numpy
 packaging
 pandas
-peft
-polars
-pylama
+polars==0.19.12 # 0.19.13 doesn't have pre-built wheels for linux
 python-dateutil
 pytz
-PyYAML
-regex
-requests
-six
-sympy
-tokenizers
-torch==2.0.1+cu118
+pyyaml
+torch==2.0.1 # cuda 12.1
 torchmetrics
 tqdm
-transformers
+transformers # FIXME doesn't work with adapters, probably?
+trl
 tweet-preprocessor
-typing_extensions
-tzdata
-urllib3
 wandb
-yarl

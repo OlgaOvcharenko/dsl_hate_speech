@@ -1,5 +1,5 @@
-program: src/train_toxicity_baseline.py
-method: grid
+program: src/train_toxicity_roberta.py
+method: random
 metric:
   name: validation/loss
   goal: minimize
@@ -7,4 +7,5 @@ parameters:
   base_model:
     value: "xlm-roberta-large"
   learning_rate:
-    values: [1e-4, 6e-5, 5e-6]
+    min: 8.0e-6
+    max: 5.0e-4

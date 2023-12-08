@@ -1,8 +1,3 @@
 # DATA
 class_names: ["non_toxic", "toxic"]
-
-# MODEL
-base_model: "deepset/gbert-base"
-
-# OPTIMIZER
-learning_rate: 1.0e-4
+task: "toxicity"
