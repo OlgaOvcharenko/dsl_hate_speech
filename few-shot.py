@@ -181,7 +181,7 @@ def train_few_binary(train, test1, test2, comment_col, classes, label_col):
     res_expert = tars.evaluate(comments_test2)
     print(res_expert)
 
-path, path_test1, path_test2 = "data/processed_training_main_v4.csv", "processed_evaluation_main_v4.csv", "data/processed_evaluation_representative_v4.csv",
+path, path_test1, path_test2 = "data/processed_training_main_v4.csv", "data/processed_evaluation_main_v4.csv", "data/processed_evaluation_representative_v4.csv",
 comment_col = 'comment'
 train = read_data(path)
 train = train[train.targeted == 1]
