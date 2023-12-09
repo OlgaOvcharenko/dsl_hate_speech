@@ -124,7 +124,7 @@ def train_few_binary(train, test1, test2, comment_col, classes, label_col):
     
     comments_train = []
     for i in range(train.shape[0]):
-        label = classes[0] if train[label_col[0]].iloc[i] == 1 or train[label_col[1]].iloc[i] == 1 else classes[1]
+        label = classes[0] if train[label_col].iloc[i] == 1 else classes[1]
 
         sentence = Sentence(train[comment_col].iloc[i], language_code='de')
         sentence.add_label(label_type, label)
@@ -133,7 +133,7 @@ def train_few_binary(train, test1, test2, comment_col, classes, label_col):
     comments_test = []
     c_test1 = []
     for i in range(test1.shape[0]):
-        label = classes[0] if test1[label_col[0]].iloc[i] == 1 or test1[label_col[1]].iloc[i] == 1 else classes[1]
+        label = classes[0] if test1[label_col].iloc[i] == 1 else classes[1]
 
         sentence = Sentence(test1[comment_col].iloc[i], language_code='de')
         c_test1.append(test1[comment_col].iloc[i])
@@ -143,7 +143,7 @@ def train_few_binary(train, test1, test2, comment_col, classes, label_col):
     comments_test2 = []
     c_test2 = []
     for i in range(test2.shape[0]):
-        label = classes[0] if test2[label_col[0]].iloc[i] == 1 or test2[label_col[1]].iloc[i] == 1 else classes[1]
+        label = classes[0] if test2[label_col].iloc[i] == 1 else classes[1]
 
         sentence = Sentence(test2[comment_col].iloc[i], language_code='de')
         c_test2.append(test2[comment_col].iloc[i])
