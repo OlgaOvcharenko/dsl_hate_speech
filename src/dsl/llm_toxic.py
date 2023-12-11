@@ -34,8 +34,8 @@ with open("configs/toxicity/defaults.yaml") as f:
 config_local.update(
     {
         "model_directory": f"/cluster/scratch/{user}/dsl_hate_speech/models",
-        "train_data": "data/processed_comments_train_v3.csv",
-        "evaluation_data": "data/processed_comments_evaluation_v3.csv",
+        "train_data": "data/processed_training_main_v4.csv",
+        "evaluation_data": "data/processed_evaluation_main_v4.csv",
         "model": "toxicity-detection-llm",
         "early_stopping_enabled": False,
         "early_stopping_epoch": 3,
