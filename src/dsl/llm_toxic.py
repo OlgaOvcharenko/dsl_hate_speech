@@ -60,7 +60,7 @@ model_path = "meta-llama/Llama-2-7b-hf"
 model = AutoModelForCausalLM.from_pretrained( 
     model_path,
     # load_in_8bit=True, 
-    device_map='auto',
+    # device_map='auto',
     quantization_config = BitsAndBytesConfig(
         load_in_8bit=False, 
         load_in_4bit=True
