@@ -176,7 +176,7 @@ def train_few_binary(train, test1, test2, test3, comment_col, classes, label_col
     trainer = ModelTrainer(tars, corpus)
     trainer.train(base_path=f'few_shot/target/{label_col}', 
                   mini_batch_size=16, 
-                  max_epochs=40, 
+                  max_epochs=1, 
                   save_final_model=True,
                   create_file_logs=True,
                   create_loss_file=True,
@@ -184,16 +184,20 @@ def train_few_binary(train, test1, test2, test3, comment_col, classes, label_col
                   main_evaluation_metric = ("macro avg", "f1-score", "macro f1-score"),
                 )
     
+    print("Train eval:")
+    res_eval = tars.evaluate(corpus.train, gold_label_type=label_type, mini_batch_size=1, out_path=f"few_shot/res/train_{label_col}_predictions.txt")
+    print(res_eval)
+    
     print("Main eval:")
-    res_eval = tars.evaluate(corpus.test, gold_label_type='pos', mini_batch_size=1, out_path=f"few_shot/res/{label_col}_predictions.txt")
+    res_eval = tars.evaluate(corpus.test, gold_label_type=label_type, mini_batch_size=1, out_path=f"few_shot/res/main_{label_col}_predictions.txt")
     print(res_eval)
 
     print("Repr. eval:")
-    res_expert = tars.evaluate(corpus_eval.train, gold_label_type='pos', mini_batch_size=1, out_path=f"few_shot/res/{label_col}_predictions.txt")
+    res_expert = tars.evaluate(corpus_eval.train, gold_label_type=label_type, mini_batch_size=1, out_path=f"few_shot/res/repr_{label_col}_predictions.txt")
     print(res_expert)
 
     print("Expert eval:")
-    res_expert = tars.evaluate(corpus_eval.test, gold_label_type='pos', mini_batch_size=1, out_path=f"few_shot/res/{label_col}_predictions.txt")
+    res_expert = tars.evaluate(corpus_eval.test, gold_label_type=label_type, mini_batch_size=1, out_path=f"few_shot/res/expert_{label_col}_predictions.txt")
     print(res_expert)
 
 path, path_test1, path_test2, path_test3 = "data/processed_training_main_v4.csv", "data/processed_evaluation_main_v4.csv", "data/processed_evaluation_representative_v4.csv", "data/processed_evaluation_expert_v4.csv"
