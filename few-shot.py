@@ -176,7 +176,7 @@ def train_few_binary(train, test1, test2, test3, comment_col, classes, label_col
     trainer = ModelTrainer(tars, corpus)
     trainer.train(base_path=f'few_shot/target/{label_col}', 
                   mini_batch_size=16, 
-                  max_epochs=0.001, 
+                  max_epochs=40, 
                   save_final_model=True,
                   create_file_logs=True,
                   create_loss_file=True,

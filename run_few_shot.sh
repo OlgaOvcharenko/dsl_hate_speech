@@ -12,9 +12,9 @@
 mkdir -p logs
 
 module load gcc/11.4.0 python/3.11.6 cuda/12.1.1 
-
+which python
 nvidia-smi
 
 source ".venv/bin/activate"
-
+which python
 python few-shot.py

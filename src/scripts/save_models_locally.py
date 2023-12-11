@@ -10,7 +10,7 @@ def save_model_local(
 ):
     AutoModelForSequenceClassification.from_pretrained(
         model_id,
-        num_labels=num_labels,
+        #num_labels=num_labels,
         problem_type=problem_type,
         ignore_mismatched_sizes=True,
     ).save_pretrained(model_path)
@@ -19,7 +19,7 @@ def save_model_local(
 
 save_model_local(
     model_id="bert-base-german-cased",
-    model_path="models/bert-base-german-cased_model",
-    tokenizer_path="models/bert-base-german-cased_tokenizer",
-    num_labels=2,
+    model_path="models/bert-base-uncased_model",
+    tokenizer_path="models/bert-base-uncased_tokenizer",
+    #num_labels=2,
 )
