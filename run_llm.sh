@@ -27,8 +27,8 @@ export CUDA_VISIBLE_DEVICES=0,1
 torchrun --nproc_per_node 2 "$1"
 #python "$1" &
 
-sleep 122
-nvidia-smi
-wait
+# sleep 122
+# nvidia-smi
+# wait
 
 echo "$(date)"

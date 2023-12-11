@@ -64,6 +64,7 @@ model = AutoModelForCausalLM.from_pretrained(
         load_in_8bit=False, 
         load_in_4bit=True
     ),
+    evice_map={'':torch.cuda.current_device()},
     torch_dtype = torch.bfloat16
 )
 
@@ -166,9 +167,7 @@ df_train, df_eval = setup_datasets_2(config_local)
 #         writer.write({"text": prompt})
 
 data = load_dataset("data/llm/")
-print(data)
 data = data.map(lambda samples: tokenizer(samples['text']), batched=True)
-print(data)
 
 training_args = transformers.TrainingArguments(
         num_train_epochs=0.01,
