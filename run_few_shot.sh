@@ -10,7 +10,7 @@
 
 mkdir -p logs
 
-module load eth_proxy gcc/8.2.0 python_gpu/3.11.2
+module load gcc/11.4.0 python/3.11.6 cuda/12.1.1 
 
 nvidia-smi
 
