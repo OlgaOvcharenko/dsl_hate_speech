@@ -59,12 +59,12 @@ config_local = wandb.config
 model_path = "meta-llama/Llama-2-7b-hf"
 model = AutoModelForCausalLM.from_pretrained( 
     model_path,
-    # device_map='auto',
+    device_map='auto',
     quantization_config = BitsAndBytesConfig(
         load_in_8bit=False, 
         load_in_4bit=True
     ),
-    evice_map={'':torch.cuda.current_device()},
+    # device_map={'':torch.cuda.current_device()},
     torch_dtype = torch.bfloat16
 )
 
