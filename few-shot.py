@@ -163,14 +163,14 @@ def train_few_binary(train, test1, test2, comment_col, classes, label_col):
                                     label_type=label_type)
     
     trainer = ModelTrainer(tars, corpus)
-    trainer.train(base_path=f'few_shot/target/{label_col}', 
-                  mini_batch_size=64, 
-                  max_epochs=20, 
+    trainer.train(base_path=f'few_shot/target/{label_col}',
+                  mini_batch_size=16, 
+                  max_epochs=30, 
                   save_final_model=True,
                   create_file_logs=True,
                   create_loss_file=True,
                   learning_rate=0.001,
-                  main_evaluation_metric = ("micro avg", "f1-score", "macro f1-score"),
+                  main_evaluation_metric = ("macro avg", "f1-score", "macro f1-score"),
                 )
     
     print("Main eval:")
