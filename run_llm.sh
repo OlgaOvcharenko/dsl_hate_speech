@@ -24,7 +24,7 @@ nvidia-smi
 export CUDA_VISIBLE_DEVICES=0,1
 
 # python -m torch.distributed.launch "$1"
-torchrun --standalone --nnodes=1 --nproc_per_node 2 "$1"
+torchrun --standalone --nnodes=1 "$1"
 #python "$1" &
 
 # sleep 122
