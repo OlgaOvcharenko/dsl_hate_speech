@@ -166,7 +166,7 @@ def train_few_binary(train, test1, test2, test3, comment_col, classes, label_col
     test = SentenceDataset(comments_test)
 
     corpus = Corpus(train=train, test=test)
-    corpus_eval = Corpus(train=SentenceDataset(comments_test2), train=SentenceDataset(comments_test3))
+    corpus_eval = Corpus(train=SentenceDataset(comments_test2), test=SentenceDataset(comments_test3))
     print('Made corpus.')
     
     tars.add_and_switch_to_new_task("target classification", 
