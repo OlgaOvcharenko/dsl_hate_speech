@@ -59,7 +59,6 @@ config_local = wandb.config
 model_path = "meta-llama/Llama-2-7b-hf"
 model = AutoModelForCausalLM.from_pretrained( 
     model_path,
-    # load_in_8bit=True, 
     # device_map='auto',
     quantization_config = BitsAndBytesConfig(
         load_in_8bit=False, 
@@ -111,22 +110,22 @@ config = LoraConfig(
 model = get_peft_model(model, config)
 print_trainable_parameters(model)
 
-max_memory = get_balanced_memory(
-    model,
-    max_memory=None,
-    no_split_module_classes=["DecoderLayer", "Attention", "MLP", "LayerNorm", "Linear"],
-    dtype='float16',
-    low_zero=False,
-)
+# max_memory = get_balanced_memory(
+#     model,
+#     max_memory=None,
+#     no_split_module_classes=["DecoderLayer", "Attention", "MLP", "LayerNorm", "Linear"],
+#     dtype='float16',
+#     low_zero=False,
+# )
 
-device_map = infer_auto_device_map(
-    model,
-    max_memory=max_memory,
-    no_split_module_classes=["DecoderLayer", "Attention", "MLP", "LayerNorm", "Linear"],
-    dtype='float16'
-)
+# device_map = infer_auto_device_map(
+#     model,
+#     max_memory=max_memory,
+#     no_split_module_classes=["DecoderLayer", "Attention", "MLP", "LayerNorm", "Linear"],
+#     dtype='float16'
+# )
 
-model = dispatch_model(model, device_map=device_map)
+# model = dispatch_model(model, device_map=device_map)
 
 
 df_train, df_eval = setup_datasets_2(config_local)
