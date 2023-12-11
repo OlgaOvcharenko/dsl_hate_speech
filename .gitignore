@@ -174,3 +174,9 @@ copy_model.sh
 
 outputs
 .idea
+
+
+.venv_llama/
+cache/
+
+
