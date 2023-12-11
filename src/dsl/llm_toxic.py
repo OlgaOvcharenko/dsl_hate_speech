@@ -129,41 +129,41 @@ print_trainable_parameters(model)
 
 
 df_train, df_eval = setup_datasets_2(config_local)
-with jsonlines.open("data/llm/train.jsonl", mode="w") as writer:
-    for row in df_train.iter_rows(named=True):
-        text, label = row["comment_preprocessed_legacy"], row["toxic"]
-        completion = "yes" if label == 1 else "no"
-        prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
-        their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
-        \nINPUT: Is this comment toxic "{}"? Answer only yes or no. \nOUTPUT: "{}".'''.format(
-            text, completion
-        )
+# with jsonlines.open("data/llm/train.jsonl", mode="w") as writer:
+#     for row in df_train.iter_rows(named=True):
+#         text, label = row["comment_preprocessed_legacy"], row["toxic"]
+#         completion = "yes" if label == 1 else "no"
+#         prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
+#         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
+#         \nINPUT: Is this comment toxic "{}"? Answer only yes or no. \nOUTPUT: "{}".'''.format(
+#             text, completion
+#         )
 
-        writer.write({"text": prompt})
+#         writer.write({"text": prompt})
 
-with jsonlines.open("data/llm/validation.jsonl", mode="w") as writer:
-    for row in df_eval.iter_rows(named=True):
-        text, label = row["comment_preprocessed_legacy"], row["toxic"]
-        completion = "yes" if label == 1 else "no"
-        prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
-        their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
-        \nINPUT: Is this comment toxic "{}"? Answer only yes or no. \n OUTPUT: "{}".'''.format(
-            text, completion
-        )
+# with jsonlines.open("data/llm/validation.jsonl", mode="w") as writer:
+#     for row in df_eval.iter_rows(named=True):
+#         text, label = row["comment_preprocessed_legacy"], row["toxic"]
+#         completion = "yes" if label == 1 else "no"
+#         prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
+#         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
+#         \nINPUT: Is this comment toxic "{}"? Answer only yes or no. \n OUTPUT: "{}".'''.format(
+#             text, completion
+#         )
 
-        writer.write({"text": prompt})
+#         writer.write({"text": prompt})
 
-with jsonlines.open("data/llm/test.jsonl", mode="w") as writer:
-    for row in df_eval.iter_rows(named=True):
-        text, label = row["comment_preprocessed_legacy"], row["toxic"]
-        completion = "yes" if label == 1 else "no"
-        prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
-        their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
-        \nINPUT: Is this comment toxic "{}"? Answer only yes or no.'''.format(
-            text
-        )
+# with jsonlines.open("data/llm/test.jsonl", mode="w") as writer:
+#     for row in df_eval.iter_rows(named=True):
+#         text, label = row["comment_preprocessed_legacy"], row["toxic"]
+#         completion = "yes" if label == 1 else "no"
+#         prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
+#         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
+#         \nINPUT: Is this comment toxic "{}"? Answer only yes or no.'''.format(
+#             text
+#         )
 
-        writer.write({"text": prompt})
+#         writer.write({"text": prompt})
 
 data = load_dataset("data/llm/")
 print(data)
