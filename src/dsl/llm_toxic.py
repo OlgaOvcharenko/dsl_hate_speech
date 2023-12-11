@@ -59,12 +59,12 @@ config_local = wandb.config
 model_path = "meta-llama/Llama-2-7b-hf"
 model = AutoModelForCausalLM.from_pretrained( 
     model_path,
-    # device_map='auto',
+    device_map='auto',
     quantization_config = BitsAndBytesConfig(
         load_in_8bit=False, 
         load_in_4bit=True
     ),
-    device_map={'':torch.cuda.current_device()},
+    # device_map={'':torch.cuda.current_device()},
     torch_dtype = torch.bfloat16
 )
 
@@ -77,7 +77,7 @@ for param in model.parameters():
     # cast the small parameters (e.g. layernorm) to fp32 for stability
     param.data = param.data.to(torch.float32)
 
-model.gradient_checkpointing_enable()  # reduce number of stored activations
+model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})  # reduce number of stored activations
 model.enable_input_require_grads()
 
 class CastOutputToFloat(nn.Sequential):
@@ -97,7 +97,6 @@ def print_trainable_parameters(model):
     print(
         f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
     )
-
 
 config = LoraConfig(
     r=16,
@@ -194,12 +193,12 @@ print("n_gpus: ", training_args.n_gpu)
 
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
 with torch.autocast("cuda"):
-    trainer.train()
-    res = trainer.evaluate()
-    print(res)
+    # trainer.train()
+    # res = trainer.evaluate()
+    # print(res)
 
-p, l, m = trainer.predict(data["test"])
-np.savetxt("data/predict_binary.csv", p, delimiter = ",")
+    p, l, m = trainer.predict(data["test"])
+    np.savetxt("data/predict_binary.csv", p, delimiter = ",")
 
 # # Inference
 # data = load_dataset("data/llm/eval")
