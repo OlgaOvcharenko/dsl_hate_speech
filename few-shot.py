@@ -117,16 +117,16 @@ def check_results(path_res: str, data: pd.DataFrame):
         plt.savefig(f'plots_zero/{col}.png')
 
 
-def train_few_binary(train, test1, test2, comment_col, classes, label_col):
+def train_few_binary(train, test1, test2, test3, comment_col, classes, label_col):
     tars = TARSClassifier.load('tars-base')
     
     label_type = 'target_class'
     
     comments_train = []
     for i in range(train.shape[0]):
-        label = classes[0] if train[label_col].iloc[i] == 1 else classes[1]
+        label = classes[0] if train["comment_preprocessed_legacy"].iloc[i] == 1 else classes[1]
 
-        sentence = Sentence(train[comment_col].iloc[i], language_code='de')
+        sentence = Sentence(train["comment_preprocessed_legacy"].iloc[i], language_code='de')
         sentence.add_label(label_type, label)
         comments_train.append(sentence)
     
@@ -135,8 +135,8 @@ def train_few_binary(train, test1, test2, comment_col, classes, label_col):
     for i in range(test1.shape[0]):
         label = classes[0] if test1[label_col].iloc[i] == 1 else classes[1]
 
-        sentence = Sentence(test1[comment_col].iloc[i], language_code='de')
-        c_test1.append(test1[comment_col].iloc[i])
+        sentence = Sentence(test1["comment_preprocessed_legacy"].iloc[i], language_code='de')
+        c_test1.append(test1["comment_preprocessed_legacy"].iloc[i])
         sentence.add_label(label_type, label)
         comments_test.append(sentence)
 
@@ -150,12 +150,23 @@ def train_few_binary(train, test1, test2, comment_col, classes, label_col):
         sentence.add_label(label_type, label)
         comments_test2.append(sentence)
     
+    comments_test3 = []
+    c_test3 = []
+    for i in range(test3.shape[0]):
+        label = classes[0] if test3[label_col].iloc[i] == 1 else classes[1]
+
+        sentence = Sentence(test3[comment_col].iloc[i], language_code='de')
+        c_test3.append(test3[comment_col].iloc[i])
+        sentence.add_label(label_type, label)
+        comments_test3.append(sentence)
+    
     print('Created sentences.')
 
     train = SentenceDataset(comments_train)
     test = SentenceDataset(comments_test)
 
     corpus = Corpus(train=train, test=test)
+    corpus_eval = Corpus(train=SentenceDataset(comments_test2), train=SentenceDataset(comments_test3))
     print('Made corpus.')
     
     tars.add_and_switch_to_new_task("target classification", 
@@ -164,8 +175,8 @@ def train_few_binary(train, test1, test2, comment_col, classes, label_col):
     
     trainer = ModelTrainer(tars, corpus)
     trainer.train(base_path=f'few_shot/target/{label_col}', 
-                  mini_batch_size=64, 
-                  max_epochs=20, 
+                  mini_batch_size=16, 
+                  max_epochs=0.001, 
                   save_final_model=True,
                   create_file_logs=True,
                   create_loss_file=True,
@@ -174,14 +185,18 @@ def train_few_binary(train, test1, test2, comment_col, classes, label_col):
                 )
     
     print("Main eval:")
-    res_rand = tars.evaluate(comments_test)
-    print(res_rand)
+    res_eval = tars.evaluate(corpus.test, gold_label_type='pos', mini_batch_size=1, out_path=f"few_shot/res/{label_col}_predictions.txt")
+    print(res_eval)
 
     print("Repr. eval:")
-    res_expert = tars.evaluate(comments_test2)
+    res_expert = tars.evaluate(corpus_eval.train, gold_label_type='pos', mini_batch_size=1, out_path=f"few_shot/res/{label_col}_predictions.txt")
     print(res_expert)
 
-path, path_test1, path_test2 = "data/processed_training_main_v4.csv", "data/processed_evaluation_main_v4.csv", "data/processed_evaluation_representative_v4.csv",
+    print("Expert eval:")
+    res_expert = tars.evaluate(corpus_eval.test, gold_label_type='pos', mini_batch_size=1, out_path=f"few_shot/res/{label_col}_predictions.txt")
+    print(res_expert)
+
+path, path_test1, path_test2, path_test3 = "data/processed_training_main_v4.csv", "data/processed_evaluation_main_v4.csv", "data/processed_evaluation_representative_v4.csv", "data/processed_evaluation_expert_v4.csv"
 comment_col = 'comment'
 train = read_data(path)
 train = train[train.targeted == 1]
@@ -191,6 +206,9 @@ test1 = test1[test1.targeted == 1]
 
 test2 = read_data(path_test2)
 test2 = test2[test2.targeted == 1]
+
+test3 = read_data(path_test3)
+test3 = test3[test3.targeted == 1]
 
 print('Read files.')
 
@@ -205,7 +223,7 @@ classes_eng = [
 
 for e, g in zip(classes_eng, classes_ger):
     classes_binary = [f"{g} hassrede", f"keine {g} hassrede"]
-    train_few_binary(train, test1, test2, comment_col, classes=classes_binary, label_col=e)
+    train_few_binary(train, test1, test2, test3, comment_col, classes=classes_binary, label_col=e)
 
 # g = "aussehen oder behinderung"
 # classes_binary = [f"{g} hassrede", f"keine {g} hassrede"]
