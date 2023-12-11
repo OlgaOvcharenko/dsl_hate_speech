@@ -22,6 +22,11 @@ echo "$1"
 nvidia-smi
 
 # python -m torch.distributed.launch "$1"
-torchrun --nproc_per_node 2 "$1"
+#torchrun --nproc_per_node 2 "$1"
+python "$1" &
+
+sleep 122
+nvidia-smi
+wait
 
 echo "$(date)"
