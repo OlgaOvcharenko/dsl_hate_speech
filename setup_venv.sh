@@ -5,6 +5,8 @@ if [[ ! -d "python_env" ]]; then
 
   # HACK Maybe locally we don't want to use the system site packages
   module load gcc/11.4.0 python/3.11.6 cuda/12.1.1 
+  which python
+  exit
   python -m venv --system-site-packages .venv
   source ".venv/bin/activate"
 
