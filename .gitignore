@@ -173,3 +173,7 @@ models/
 copy_model.sh
 
 .idea
+
+.venv_llama/
+cache/
+few_shot/
