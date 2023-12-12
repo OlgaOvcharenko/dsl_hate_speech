@@ -142,20 +142,14 @@ def setup_datasets_2(config: wandb.Config):
     return df[train_idx], df[val_idx]
 
 
-def setup_datasets_targets_only(config: wandb.Config):
-    df, comments, labels = _load_data(config.train_data, config.class_names)
+def setup_datasets_targets_only(config: wandb.Config, file):
+    df, comments, labels = _load_data(file, config.class_names)
     indices = df["targeted"] == 1
-    df = df[indices]
-    comments = comments[indices]
-    labels = labels[indices, :]
-
-    if config.dataset_portion < 1:
-        _, val_idx = _split_2(comments, labels, config, size=config.dataset_portion)
-        comments, labels = comments[val_idx], labels[val_idx]
-
-    train_idx, val_idx = _split_2(comments, labels, config)
-
-    return df[train_idx], df[val_idx]
+    print(df)
+    print(indices)
+    print(df.iloc[indices])
+    df = df.iloc[indices]
+    return df
 
 
 def setup_datasets(config: wandb.Config, stage: str):

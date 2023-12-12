@@ -110,7 +110,7 @@ config = LoraConfig(
 model = get_peft_model(model, config)
 print_trainable_parameters(model)
 
-df_train, df_eval = setup_datasets_targets_only(config_local)
+df_train = setup_datasets_targets_only(config_local, file=config_local.train_data)
 with jsonlines.open("data/llm_target/train.jsonl", mode="w") as writer:
     for row in df_train.iter_rows(named=True):
         text = row["comment_preprocessed_legacy"]
@@ -135,6 +135,7 @@ with jsonlines.open("data/llm_target/train.jsonl", mode="w") as writer:
 
         writer.write({"text": prompt})
 
+df_eval = setup_datasets_targets_only(config_local, file=config_local.evaluation_data)
 with jsonlines.open("data/llm_target/validation.jsonl", mode="w") as writer:
     for row in df_eval.iter_rows(named=True):
         text = row["comment_preprocessed_legacy"]
