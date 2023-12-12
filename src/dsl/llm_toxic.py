@@ -59,12 +59,12 @@ config_local = wandb.config
 model_path = "meta-llama/Llama-2-7b-hf"
 model = AutoModelForCausalLM.from_pretrained( 
     model_path,
-    device_map='auto',
+    device_map={'':torch.cuda.current_device()},
+    #device_map='auto',
     quantization_config = BitsAndBytesConfig(
         load_in_8bit=False, 
         load_in_4bit=True
     ),
-    # device_map={'':torch.cuda.current_device()},
     torch_dtype = torch.bfloat16
 )
 
@@ -169,7 +169,7 @@ data = load_dataset("data/llm/")
 data = data.map(lambda samples: tokenizer(samples['text']), batched=True)
 
 training_args = transformers.TrainingArguments(
-        num_train_epochs=0.01,
+        num_train_epochs=10,
         per_device_train_batch_size=4, 
         gradient_accumulation_steps=4,
         warmup_steps=100, 
@@ -177,7 +177,7 @@ training_args = transformers.TrainingArguments(
         learning_rate=2e-4, 
         fp16=True,
         logging_steps=1, 
-        output_dir='outputs'
+        output_dir='outputs_7b'
     )
 
 trainer = transformers.Trainer(
@@ -193,9 +193,10 @@ print("n_gpus: ", training_args.n_gpu)
 
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
 with torch.autocast("cuda"):
-    # trainer.train()
-    # res = trainer.evaluate()
-    # print(res)
+    trainer.train()
+    res = trainer.evaluate()
+    print(res)
+    model.save_pretrained("outputs_7b/")
 
     p, l, m = trainer.predict(data["test"])
     np.savetxt("data/predict_binary.csv", p, delimiter = ",")

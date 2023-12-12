@@ -179,4 +179,6 @@ outputs
 .venv_llama/
 cache/
 
+few_shot/
+outputs_7b/
 
