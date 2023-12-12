@@ -147,6 +147,7 @@ def setup_datasets_targets_only(config: wandb.Config, file):
     indices = df["targeted"] == 1
     print(df)
     print(indices)
+    print(df[[indices]])
     print(df.iloc[indices])
     df = df.iloc[indices]
     return df
