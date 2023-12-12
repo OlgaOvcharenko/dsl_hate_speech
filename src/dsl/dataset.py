@@ -10,6 +10,7 @@ from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from sklearn.model_selection import StratifiedShuffleSplit
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoTokenizer
+import pandas
 
 import wandb
 
@@ -146,10 +147,8 @@ def setup_datasets_targets_only(config: wandb.Config, file):
     df, comments, labels = _load_data(file, config.class_names)
     indices = df["targeted"] == 1
     df = df.to_pandas()
-    print(df)
-    print(indices)
-    print(df.iloc[indices])
-    df = df.iloc[indices]
+    print(df[indices])
+    df = df[indices]
     return df
 
 
