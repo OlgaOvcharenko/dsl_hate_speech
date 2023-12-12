@@ -1,0 +1,8 @@
+# DATA
+class_names: ["gender", "age", "sexuality", "religion", "nationality", "disability", "social_status", "political_views", "appearance", "other"]
+
+# MODEL
+base_model: "deepset/gbert-base"
+
+# OPTIMIZER
+learning_rate: 1.0e-4

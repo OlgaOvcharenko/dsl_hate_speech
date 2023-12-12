@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 from dataset import setup_datasets_2, setup_datasets_targets_only
-# os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 import torch
 import torch.nn as nn
 import bitsandbytes as bnb
@@ -27,15 +27,15 @@ config_local = {}
 with open("configs/defaults.yaml") as f:
     base_config = yaml.load(f, Loader=yaml.FullLoader)
     config_local.update(base_config)
-with open("configs/targets/defaults.yaml") as f:
+with open("configs/toxicity/defaults.yaml") as f:
     toxicity_config = yaml.load(f, Loader=yaml.FullLoader)
     config_local.update(toxicity_config)
 
 config_local.update(
     {
         "model_directory": f"/cluster/scratch/{user}/dsl_hate_speech/models",
-        "train_data": "data/processed_training_main_v4.csv",
-        "evaluation_data": "data/processed_evaluation_main_v4.csv",
+        "train_data": "data/processed_comments_train_v3.csv",
+        "evaluation_data": "data/processed_comments_evaluation_v3.csv",
         "model": "toxicity-detection-llm",
         "early_stopping_enabled": False,
         "early_stopping_epoch": 3,
@@ -44,7 +44,7 @@ config_local.update(
         "epochs": 5,
     }
 )
-wandb.init(project="targets-detection-llm", config=config_local)
+wandb.init(project="toxicity-detection-llm", config=config_local)
 
 match wandb.config["base_model"]:
     case "Hate-speech-CNERG/dehatebert-mono-german":
@@ -56,15 +56,15 @@ match wandb.config["base_model"]:
 config_local = wandb.config
 
 
-model_path = "meta-llama/Llama-2-13b-hf"
+model_path = "meta-llama/Llama-2-7b-hf"
 model = AutoModelForCausalLM.from_pretrained( 
     model_path,
-    #device_map='auto',
+    # load_in_8bit=True, 
+    device_map='auto',
     quantization_config = BitsAndBytesConfig(
         load_in_8bit=False, 
         load_in_4bit=True
     ),
-    device_map={'':torch.cuda.current_device()},
     torch_dtype = torch.bfloat16
 )
 
@@ -77,7 +77,7 @@ for param in model.parameters():
     # cast the small parameters (e.g. layernorm) to fp32 for stability
     param.data = param.data.to(torch.float32)
 
-model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})  # reduce number of stored activations
+model.gradient_checkpointing_enable()  # reduce number of stored activations
 model.enable_input_require_grads()
 
 class CastOutputToFloat(nn.Sequential):
@@ -109,6 +109,24 @@ config = LoraConfig(
 
 model = get_peft_model(model, config)
 print_trainable_parameters(model)
+
+max_memory = get_balanced_memory(
+    model,
+    max_memory=None,
+    no_split_module_classes=["DecoderLayer", "Attention", "MLP", "LayerNorm", "Linear"],
+    dtype='float16',
+    low_zero=False,
+)
+
+device_map = infer_auto_device_map(
+    model,
+    max_memory=max_memory,
+    no_split_module_classes=["DecoderLayer", "Attention", "MLP", "LayerNorm", "Linear"],
+    dtype='float16'
+)
+
+model = dispatch_model(model, device_map=device_map)
+
 
 df_train, df_eval = setup_datasets_targets_only(config_local)
 with jsonlines.open("data/llm_target/train.jsonl", mode="w") as writer:
@@ -173,10 +191,12 @@ with jsonlines.open("data/llm_target/test.jsonl", mode="w") as writer:
         writer.write({"text": prompt})
 
 data = load_dataset("data/llm_target/")
+print(data)
 data = data.map(lambda samples: tokenizer(samples['text']), batched=True)
+print(data)
 
 training_args = transformers.TrainingArguments(
-        num_train_epochs=5,
+        num_train_epochs=3,
         per_device_train_batch_size=4, 
         gradient_accumulation_steps=4,
         warmup_steps=100, 
@@ -184,8 +204,9 @@ training_args = transformers.TrainingArguments(
         learning_rate=2e-4, 
         fp16=True,
         logging_steps=1, 
-        output_dir='outputs_targets'
+        output_dir='outputs'
     )
+
 
 trainer = transformers.Trainer(
     model=model, 
@@ -204,16 +225,9 @@ with torch.autocast("cuda"):
     res = trainer.evaluate()
     print(res)
 
-    model.save_pretrained("outputs_targets/")
+p, l, m = trainer.predict(data["test"])
+np.savetxt("data/predict_targets.csv", p, delimiter = ",")
 
-    p, l, m = trainer.predict(data["test"])
-    np.savetxt("data/predict_binary.csv", p, delimiter = ",")
-
-# # Inference
-# data = load_dataset("data/llm/eval")
-# print(data)
-# data = data.map(lambda samples: tokenizer(samples['quote']), batched=True)
-# print(data)
 # text = "Gute Idee und die Hassprediger auch gleich ausweisen und keine dieser Sorte mehr ins Land lassen. Gleichzeitig aber auch ein europaweites Verzeichnis pädophiler Pfaffen und diesen ein Berufsverbot auferlegen. Wird endlich Zeit dass in diesen Religionen aufgeräumt wird!"
 # prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
 #         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
