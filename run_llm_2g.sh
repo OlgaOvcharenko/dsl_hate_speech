@@ -7,6 +7,7 @@
 #SBATCH --cpus-per-task=20
 #SBATCH --mem-per-cpu=10G
 #SBATCH --time=12:00:00
+#SBATCH --mail-type=BEGIN,END,FAIL
 
 CONSUL_HTTP_ADDR=""
 
