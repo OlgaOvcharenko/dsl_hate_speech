@@ -147,9 +147,8 @@ def setup_datasets_targets_only(config: wandb.Config, file):
     df, comments, labels = _load_data(file, config.class_names)
     df = df.to_pandas()
     indices = df["targeted"] == 1
-    print(df[indices])
-    # df = df[[indices]]
     df = df[indices]
+    df = pr.from_pandas(df)
     return df
 
 
