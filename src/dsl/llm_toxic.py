@@ -129,29 +129,31 @@ print_trainable_parameters(model)
 
 
 df_train, df_eval = setup_datasets_2(config_local)
-# with jsonlines.open("data/llm/train.jsonl", mode="w") as writer:
-#     for row in df_train.iter_rows(named=True):
-#         text, label = row["comment_preprocessed_legacy"], row["toxic"]
-#         completion = "yes" if label == 1 else "no"
-#         prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
-#         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
-#         \nINPUT: Is this comment toxic "{}"? Answer only yes or no. \nOUTPUT: "{}".'''.format(
-#             text, completion
-#         )
+with jsonlines.open("data/llm/train.jsonl", mode="w") as writer:
+    for row in df_train.iter_rows(named=True):
+        text, label = row["comment_preprocessed_legacy"], row["toxic"]
+        completion = "yes" if label == 1 else "no"
+        if len(text) < 1000:
+            prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
+            their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
+            \nINPUT: Is this comment toxic "{}"? Answer only yes or no. \nOUTPUT: "{}".'''.format(
+                text, completion
+            )
 
-#         writer.write({"text": prompt})
+            writer.write({"text": prompt})
 
-# with jsonlines.open("data/llm/validation.jsonl", mode="w") as writer:
-#     for row in df_eval.iter_rows(named=True):
-#         text, label = row["comment_preprocessed_legacy"], row["toxic"]
-#         completion = "yes" if label == 1 else "no"
-#         prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
-#         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
-#         \nINPUT: Is this comment toxic "{}"? Answer only yes or no. \n OUTPUT: "{}".'''.format(
-#             text, completion
-#         )
+with jsonlines.open("data/llm/validation.jsonl", mode="w") as writer:
+    for row in df_eval.iter_rows(named=True):
+        text, label = row["comment_preprocessed_legacy"], row["toxic"]
+        if len(text) < 1000:
+            completion = "yes" if label == 1 else "no"
+            prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
+            their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
+            \nINPUT: Is this comment toxic "{}"? Answer only yes or no. \n OUTPUT: "{}".'''.format(
+                text, completion
+            )
 
-#         writer.write({"text": prompt})
+            writer.write({"text": prompt})
 
 # with jsonlines.open("data/llm/test.jsonl", mode="w") as writer:
 #     for row in df_eval.iter_rows(named=True):
@@ -193,13 +195,13 @@ print("n_gpus: ", training_args.n_gpu)
 
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
 with torch.autocast("cuda"):
-    trainer.train()
+    trainer.train(resume_from_checkpoint=True)
     res = trainer.evaluate()
     print(res)
     model.save_pretrained("outputs_7b/")
 
-    p, l, m = trainer.predict(data["test"])
-    np.savetxt("data/predict_binary.csv", p, delimiter = ",")
+    # p, l, m = trainer.predict(data["test"])
+    # np.savetxt("data/predict_binary.csv", p, delimiter = ",")
 
 # # Inference
 # data = load_dataset("data/llm/eval")
