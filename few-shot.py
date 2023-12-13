@@ -222,8 +222,9 @@ classes_ger = [
         "behinderung", "sozialer status", "politische ansichten",  "aussehen", "andere"]
 
 classes_eng = [
-        "gender", "age", "sexuality", "religion", "nationality", 
-        "disability", "social_status", "political_views", "appearance", "other"]
+        # "gender", "age", "sexuality", "religion", "nationality", 
+        # "disability", 
+        "social_status", "political_views", "appearance", "other"]
 
 for e, g in zip(classes_eng, classes_ger):
     classes_binary = [f"{g} hassrede", f"keine {g} hassrede"]
