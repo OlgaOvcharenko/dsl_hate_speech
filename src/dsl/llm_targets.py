@@ -131,7 +131,7 @@ with jsonlines.open("data/llm_target/train.jsonl", mode="w") as writer:
             prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
             Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
             \nINPUT: What is 1 or more targets of this comment "{}"? 
-            Use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, other. \nOUTPUT: "{}".'''.format(
+            Use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, other. \nOUTPUT: {}.'''.format(
                 text, curr_targets
             )
 
@@ -156,7 +156,7 @@ with jsonlines.open("data/llm_target/validation.jsonl", mode="w") as writer:
             prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
             Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
             \nINPUT: What is 1 or more targets of this comment "{}"? 
-            Use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, other. \nOUTPUT: "{}".'''.format(
+            Use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, other. \nOUTPUT: {}.'''.format(
                 text, curr_targets
             )
 
