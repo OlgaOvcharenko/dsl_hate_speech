@@ -2,7 +2,7 @@
 
 #SBATCH --output=logs/log-%j.out
 #SBATCH --nodes=1
-#SBATCH --gpus-per-node=3
+#SBATCH --gpus-per-node=4
 #SBATCH --gres=gpumem:32G
 #SBATCH --cpus-per-task=10
 #SBATCH --mem-per-cpu=10G
