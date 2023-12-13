@@ -21,7 +21,7 @@ source ".venv_llama/bin/activate"
 
 export WANDB__SERVICE_WAIT=300
 export TRANSFORMERS_CACHE=/cluster/scratch/oovcharenko/dsl_hate_speech/cache/
-export 'PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512'
+#export 'PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512'
 
 echo "$(date)"
 echo "$1"
