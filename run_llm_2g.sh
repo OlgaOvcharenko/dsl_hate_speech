@@ -32,10 +32,6 @@ nvidia-smi
 
 # python -m torch.distributed.launch "$1"
 #torchrun --standalone --nnodes=1 "$1"
-python "$1" &
-
-sleep 122
-nvidia-smi
-wait
+python "$1"
 
 echo "$(date)"
