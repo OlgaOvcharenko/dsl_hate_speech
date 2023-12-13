@@ -218,12 +218,13 @@ print('Read files.')
 
 
 classes_ger = [
-        "geschlecht", "alter", "sexualitat", "religion", "nationalitaet", 
-        "behinderung", "sozialer status", "politische ansichten",  "aussehen", "andere"]
+        # "geschlecht", "alter", "sexualitat", "religion", "nationalitaet", 
+        # "behinderung", 
+        "sozialer status", "politische ansichten",  "aussehen", "andere"]
 
 classes_eng = [
-        "gender", "age", "sexuality", "religion", "nationality", 
-        "disability", 
+        # "gender", "age", "sexuality", "religion", "nationality", 
+        # "disability", 
         "social_status", "political_views", "appearance", "other"]
 
 # for e, g in zip(classes_eng, classes_ger):
@@ -234,10 +235,10 @@ classes_eng = [
 for e, g in zip(classes_eng, classes_ger):
     classes_binary = [f"{g} hassrede", f"keine {g} hassrede"]
     
-    n = sum(train[e] == 1)
-    positive = train[train[e] == 1]
-    negative = train[train[e] == 0]
-    negative = negative.sample(n=n)
-    train_new = pd.concat([positive, negative], axis=0)
-    train_few_binary(train_new, test1, test2, test3, comment_col, classes=classes_binary, label_col=e)
+    # n = sum(train[e] == 1)
+    # positive = train[train[e] == 1]
+    # negative = train[train[e] == 0]
+    # negative = negative.sample(n=n)
+    # train_new = pd.concat([positive, negative], axis=0)
+    train_few_binary(train, test1, test2, test3, comment_col, classes=classes_binary, label_col=e)
 
