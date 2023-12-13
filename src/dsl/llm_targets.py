@@ -56,7 +56,7 @@ match wandb.config["base_model"]:
 config_local = wandb.config
 
 
-model_path = "meta-llama/Llama-2-13b-hf"
+model_path = "meta-llama/Llama-2-7b-hf"
 model = AutoModelForCausalLM.from_pretrained( 
     model_path,
     #device_map='auto',
