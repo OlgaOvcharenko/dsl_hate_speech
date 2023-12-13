@@ -117,7 +117,7 @@ with jsonlines.open("data/llm_target/train.jsonl", mode="w") as writer:
     for row in df_train.iter_rows(named=True):
         text = row["comment_preprocessed_legacy"]
         target_categories = ["gender", "age", "sexuality", "religion", "nationality", "disability", "social_status", "political_views", "appearance", "other"]
-        if len(text) < 1000:
+        if len(text) < 500:
             curr_targets = ""
             for val in target_categories:
                 if row[val] == 1:
@@ -142,7 +142,7 @@ with jsonlines.open("data/llm_target/validation.jsonl", mode="w") as writer:
     for row in df_eval.iter_rows(named=True):
         text = row["comment_preprocessed_legacy"]
         target_categories = ["gender", "age", "sexuality", "religion", "nationality", "disability", "social_status", "political_views", "appearance", "other"]
-        if len(text) < 1000:
+        if len(text) < 500:
             curr_targets = ""
             for val in target_categories:
                 if row[val] == 1:
