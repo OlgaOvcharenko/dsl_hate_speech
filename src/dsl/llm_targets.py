@@ -61,8 +61,10 @@ model = AutoModelForCausalLM.from_pretrained(
     model_path,
     #device_map='auto',
     quantization_config = BitsAndBytesConfig(
-        load_in_8bit=False, 
-        load_in_4bit=True
+        load_in_4bit=True,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16
     ),
     device_map={'':torch.cuda.current_device()},
     torch_dtype = torch.bfloat16
@@ -177,7 +179,7 @@ data = load_dataset("data/llm_target/")
 data = data.map(lambda samples: tokenizer(samples['text']), batched=True)
 
 training_args = transformers.TrainingArguments(
-        num_train_epochs=5,
+        num_train_epochs=2,
         per_device_train_batch_size=4, 
         gradient_accumulation_steps=4,
         warmup_steps=100, 
@@ -201,7 +203,7 @@ print("n_gpus: ", training_args.n_gpu)
 
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
 with torch.autocast("cuda"):
-    trainer.train(resume_from_checkpoint=True)
+    trainer.train(resume_from_checkpoint=False)
     res = trainer.evaluate()
     print(res)
 
