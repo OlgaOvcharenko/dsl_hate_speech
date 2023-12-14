@@ -203,7 +203,7 @@ print("n_gpus: ", training_args.n_gpu)
 
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
 with torch.autocast("cuda"):
-    trainer.train(resume_from_checkpoint=False)
+    trainer.train(resume_from_checkpoint=True)
     res = trainer.evaluate()
     print(res)
 
