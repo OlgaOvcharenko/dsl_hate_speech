@@ -255,4 +255,4 @@ for row in df_eval.iter_rows(named=True):
 df_res = pd.DaraFrame(results)
 df_res["cat"] = targets_cat
 
-# df_res.to_csv("outputs_targets/results_main_eval.csv", sep=",", index=False)
+df_res.to_csv("outputs_targets_new/results_main_eval_new.csv", sep=",", index=False)
