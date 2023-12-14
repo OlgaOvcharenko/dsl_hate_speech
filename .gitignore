@@ -177,3 +177,4 @@ copy_model.sh
 .venv_llama/
 cache/
 few_shot/
+log-39764097.out
