@@ -175,6 +175,9 @@ with torch.autocast("cuda"):
     tmp_data = data["test"].select(range(2))
     print(tmp_data)
     p, l, m = trainer.predict(tmp_data)
+    print(p)
+    print(l)
+    print(m)
     np.savetxt("data/predict_binary.csv", p, delimiter = ",")
 
 # # Inference
