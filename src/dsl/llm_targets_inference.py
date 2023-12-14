@@ -182,6 +182,8 @@ model.config.use_cache = True  # silence the warnings. Please re-enable for infe
 #     np.savetxt("data/predict_binary.csv", p, delimiter = ",")
 
 # Inference
+device = torch.device('cuda')
+
 df_eval = setup_datasets_targets_only(config_local, file=config_local.evaluation_data)
 
 results, targets_cat = [], []
@@ -211,6 +213,7 @@ for row in df_eval.iter_rows(named=True):
     batch = tokenizer(prompt, return_tensors='pt')
 
     with torch.cuda.amp.autocast():
+        batch = batch.to(device)
         output_tokens = model.generate(**batch, max_new_tokens=50)
         res = tokenizer.decode(output_tokens[0], skip_special_tokens=True)
         print('\n\n', )
