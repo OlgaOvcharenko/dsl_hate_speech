@@ -179,7 +179,7 @@ data = load_dataset("data/llm_target/")
 data = data.map(lambda samples: tokenizer(samples['text']), batched=True)
 
 training_args = transformers.TrainingArguments(
-        num_train_epochs=2,
+        num_train_epochs=5,
         per_device_train_batch_size=4, 
         gradient_accumulation_steps=4,
         warmup_steps=100, 
