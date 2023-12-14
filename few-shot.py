@@ -56,12 +56,15 @@ def train_few(train, test, comment_col):
     tars = TARSClassifier.load('tars-base')
     classes = ["geschlecht", "alter", "sexualitat", "religion", "nationalitaet", 
             "behinderung", "sozialer status", "politische ansichten",  "aussehen"]
+    classes_eng = [
+        "gender", "age", "sexuality", "religion", "nationality", "disability", 
+        "social_status", "political_views", "appearance", "other"]
     
     label_type = 'target_class'
     
     comments_train = []
     for i in range(train.shape[0]):
-        labels = [classes[j-1] for j in range(1, len(classes)+1) if train.iloc[i, j]]
+        labels = [classes[j] for j in range(len(classes)) if train[classes_eng[j]].iloc[i,]]
 
         sentence = Sentence(train[comment_col].iloc[i], language_code='de')
         [sentence.add_label(label_type, l) for l in labels]
@@ -69,7 +72,7 @@ def train_few(train, test, comment_col):
     
     comments_test = []
     for i in range(test.shape[0]):
-        labels = [classes[j-1] for j in range(1, len(classes)+1) if test.iloc[i, j]]
+        labels = [classes[j] for j in range(len(classes)) if train[classes_eng[j]].iloc[i,]]
 
         sentence = Sentence(test[comment_col].iloc[i], language_code='de')
         [sentence.add_label(label_type, l) for l in labels]
@@ -217,28 +220,31 @@ test3 = test3[test3.targeted == 1]
 print('Read files.')
 
 
-classes_ger = [
-        # "geschlecht", "alter", "sexualitat", "religion", "nationalitaet", 
-        # "behinderung", 
-        "sozialer status", "politische ansichten",  "aussehen", "andere"]
+train_few(train, test1, "comment_preprocessed_legacy")
 
-classes_eng = [
-        # "gender", "age", "sexuality", "religion", "nationality", 
-        # "disability", 
-        "social_status", "political_views", "appearance", "other"]
+
+# classes_ger = [
+#         # "geschlecht", "alter", "sexualitat", "religion", "nationalitaet", 
+#         # "behinderung", 
+#         "sozialer status", "politische ansichten",  "aussehen", "andere"]
+
+# classes_eng = [
+#         # "gender", "age", "sexuality", "religion", "nationality", 
+#         # "disability", 
+#         "social_status", "political_views", "appearance", "other"]
+
+# # for e, g in zip(classes_eng, classes_ger):
+# #     classes_binary = [f"{g} hassrede", f"keine {g} hassrede"]
+# #     train_few_binary(train, test1, test2, test3, comment_col, classes=classes_binary, label_col=e)
+
 
 # for e, g in zip(classes_eng, classes_ger):
 #     classes_binary = [f"{g} hassrede", f"keine {g} hassrede"]
-#     train_few_binary(train, test1, test2, test3, comment_col, classes=classes_binary, label_col=e)
-
-
-for e, g in zip(classes_eng, classes_ger):
-    classes_binary = [f"{g} hassrede", f"keine {g} hassrede"]
     
-    # n = sum(train[e] == 1)
-    # positive = train[train[e] == 1]
-    # negative = train[train[e] == 0]
-    # negative = negative.sample(n=n)
-    # train_new = pd.concat([positive, negative], axis=0)
-    train_few_binary(train, test1, test2, test3, comment_col, classes=classes_binary, label_col=e)
+#     # n = sum(train[e] == 1)
+#     # positive = train[train[e] == 1]
+#     # negative = train[train[e] == 0]
+#     # negative = negative.sample(n=n)
+#     # train_new = pd.concat([positive, negative], axis=0)
+#     train_few_binary(train, test1, test2, test3, comment_col, classes=classes_binary, label_col=e)
 
