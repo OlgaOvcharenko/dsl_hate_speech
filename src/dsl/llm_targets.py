@@ -201,19 +201,17 @@ print("parallel_mode: ", training_args.parallel_mode)
 print("n_gpus: ", training_args.n_gpu)
 
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
-with torch.autocast("cuda"):
-    trainer.train(resume_from_checkpoint=False)
-    res = trainer.evaluate()
-    print(res)
-    model.save_pretrained("outputs_targets_new/")
+# with torch.autocast("cuda"):
+#     trainer.train(resume_from_checkpoint=False)
+#     res = trainer.evaluate()
+#     print(res)
+#     model.save_pretrained("outputs_targets_new/")
 
-    # p, l, m = trainer.predict(data["test"])
-    # np.savetxt("data/predict_binary.csv", p, delimiter = ",")
+#     p, l, m = trainer.predict(data["test"])
+#     np.savetxt("data/predict_binary.csv", p, delimiter = ",")
 
 
-print("Inference:")
 # Inference
-model.config.use_cache = True
 device = torch.device('cuda')
 
 df_eval = setup_datasets_targets_only(config_local, file=config_local.evaluation_data)
@@ -226,13 +224,13 @@ for row in df_eval.iter_rows(named=True):
     curr_targets = ""
     for val in target_categories:
         if row[val] == 1:
-            targets_cat.append(val)
             val_fix = val.replace("_", " ")
             curr_targets = curr_targets + val_fix + ", "
     
     if len(curr_targets) > 2:
         curr_targets = curr_targets[:-2]
-
+    
+    targets_cat.append(curr_targets)
 
     prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
     Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
@@ -241,18 +239,23 @@ for row in df_eval.iter_rows(named=True):
         text
     )
 
-
+    print("Generate prompt")
     batch = tokenizer(prompt, return_tensors='pt')
+    print("Tokenized", batch)
 
     with torch.cuda.amp.autocast():
         batch = batch.to(device)
         output_tokens = model.generate(**batch, max_new_tokens=50)
+
+        print("Output tokens", output_tokens)
+
         res = tokenizer.decode(output_tokens[0], skip_special_tokens=True)
-        print('\n\n', res)
+
+        print('Decoded', res)
 
         results.append(res)
 
 df_res = pd.DaraFrame(results)
 df_res["cat"] = targets_cat
 
-df_res.to_csv("outputs_targets_new/results_main_eval_new.csv", sep=",", index=False)
+df_res.to_csv("outputs_targets_new/results_main_eval.csv", sep=",", index=False)
