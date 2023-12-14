@@ -117,7 +117,7 @@ print_trainable_parameters(model)
 
 df_eval = setup_datasets_targets_only(config_local, file=config_local.evaluation_data)
 targets_cat = []
-with jsonlines.open("data/llm_target/test.jsonl", mode="w") as writer:
+with jsonlines.open("data/llm_target_predict/test.jsonl", mode="w") as writer:
     for row in df_eval.iter_rows(named=True):
         text = row["comment_preprocessed_legacy"]
         target_categories = ["gender", "age", "sexuality", "religion", "nationality", "disability", "social_status", "political_views", "appearance", "other"]
@@ -141,7 +141,7 @@ with jsonlines.open("data/llm_target/test.jsonl", mode="w") as writer:
 
         writer.write({"text": prompt})
 
-data = load_dataset("data/llm_target/")
+data = load_dataset("data/llm_target_predict/")
 data = data.map(lambda samples: tokenizer(samples['text']), batched=True)
 
 training_args = transformers.TrainingArguments(
@@ -159,8 +159,8 @@ training_args = transformers.TrainingArguments(
 
 trainer = transformers.Trainer(
     model=model, 
-    train_dataset=data['train'],
-    eval_dataset=data['validation'],
+    # train_dataset=data['train'],
+    # eval_dataset=data['validation'],
     args=training_args,
     data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False)
 )
@@ -172,7 +172,7 @@ model.config.use_cache = True  # silence the warnings. Please re-enable for infe
 with torch.autocast("cuda"):
     print(data["test"])
     
-    tmp_data = data["test"].select(range(100))
+    tmp_data = data["test"].select(range(4))
     p, l, m = trainer.predict(tmp_data)
     np.savetxt("data/predict_binary.csv", p, delimiter = ",")
 
