@@ -121,26 +121,25 @@ with jsonlines.open("data/llm_target/test.jsonl", mode="w") as writer:
     for row in df_eval.iter_rows(named=True):
         text = row["comment_preprocessed_legacy"]
         target_categories = ["gender", "age", "sexuality", "religion", "nationality", "disability", "social_status", "political_views", "appearance", "other"]
-        if len(text) < 500:
-            curr_targets = ""
-            for val in target_categories:
-                if row[val] == 1:
-                    targets_cat.append(val)
-                    val_fix = val.replace("_", " ")
-                    curr_targets = curr_targets + val_fix + ", "
-            
-            if len(curr_targets) > 2:
-                curr_targets = curr_targets[:-2]
+        curr_targets = ""
+        for val in target_categories:
+            if row[val] == 1:
+                targets_cat.append(val)
+                val_fix = val.replace("_", " ")
+                curr_targets = curr_targets + val_fix + ", "
+        
+        if len(curr_targets) > 2:
+            curr_targets = curr_targets[:-2]
 
 
-            prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
-            Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
-            \nINPUT: What is 1 or more targets of this comment "{}"? 
-            Use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, other.'''.format(
-                text
-            )
+        prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
+        Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
+        \nINPUT: What is 1 or more targets of this comment "{}"? 
+        Use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, other.'''.format(
+            text
+        )
 
-            writer.write({"text": prompt})
+        writer.write({"text": prompt})
 
 data = load_dataset("data/llm_target/")
 data = data.map(lambda samples: tokenizer(samples['text']), batched=True)
@@ -154,7 +153,8 @@ training_args = transformers.TrainingArguments(
         learning_rate=2e-4, 
         fp16=True,
         logging_steps=1, 
-        output_dir='outputs_targets'
+        output_dir='outputs_targets',
+        eval_accumulation_steps=2
     )
 
 trainer = transformers.Trainer(
