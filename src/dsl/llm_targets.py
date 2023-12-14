@@ -16,6 +16,7 @@ import wandb
 import yaml
 from accelerate import dispatch_model, infer_auto_device_map
 from accelerate.utils import get_balanced_memory
+import pandas as pd
 
 from huggingface_hub import login
 login(token='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', add_to_git_credential=True)
@@ -137,30 +138,30 @@ with jsonlines.open("data/llm_target/train.jsonl", mode="w") as writer:
 
             writer.write({"text": prompt})
 
-df_eval = setup_datasets_targets_only(config_local, file=config_local.evaluation_data)
-with jsonlines.open("data/llm_target/validation.jsonl", mode="w") as writer:
-    for row in df_eval.iter_rows(named=True):
-        text = row["comment_preprocessed_legacy"]
-        target_categories = ["gender", "age", "sexuality", "religion", "nationality", "disability", "social_status", "political_views", "appearance", "other"]
-        if len(text) < 500:
-            curr_targets = ""
-            for val in target_categories:
-                if row[val] == 1:
-                    val_fix = val.replace("_", " ")
-                    curr_targets = curr_targets + val_fix + ", "
+# df_eval = setup_datasets_targets_only(config_local, file=config_local.evaluation_data)
+# with jsonlines.open("data/llm_target/validation.jsonl", mode="w") as writer:
+#     for row in df_eval.iter_rows(named=True):
+#         text = row["comment_preprocessed_legacy"]
+#         target_categories = ["gender", "age", "sexuality", "religion", "nationality", "disability", "social_status", "political_views", "appearance", "other"]
+#         if len(text) < 500:
+#             curr_targets = ""
+#             for val in target_categories:
+#                 if row[val] == 1:
+#                     val_fix = val.replace("_", " ")
+#                     curr_targets = curr_targets + val_fix + ", "
             
-            if len(curr_targets) > 2:
-                curr_targets = curr_targets[:-2]
+#             if len(curr_targets) > 2:
+#                 curr_targets = curr_targets[:-2]
 
 
-            prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
-            Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
-            \nINPUT: What is 1 or more targets of this comment "{}"? 
-            Use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, other. \nOUTPUT: {}.'''.format(
-                text, curr_targets
-            )
+#             prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
+#             Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
+#             \nINPUT: What is 1 or more targets of this comment "{}"? 
+#             Use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, other. \nOUTPUT: {}.'''.format(
+#                 text, curr_targets
+#             )
 
-            writer.write({"text": prompt})
+#             writer.write({"text": prompt})
 
 # with jsonlines.open("data/llm_target/test.jsonl", mode="w") as writer:
 #     for row in df_eval.iter_rows(named=True):
@@ -179,7 +180,7 @@ data = load_dataset("data/llm_target/")
 data = data.map(lambda samples: tokenizer(samples['text']), batched=True)
 
 training_args = transformers.TrainingArguments(
-        num_train_epochs=5,
+        num_train_epochs=0.01,
         per_device_train_batch_size=4, 
         gradient_accumulation_steps=4,
         warmup_steps=100, 
@@ -193,7 +194,7 @@ training_args = transformers.TrainingArguments(
 trainer = transformers.Trainer(
     model=model, 
     train_dataset=data['train'],
-    eval_dataset=data['validation'],
+    # eval_dataset=data['validation'],
     args=training_args,
     data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False)
 )
@@ -204,28 +205,54 @@ print("n_gpus: ", training_args.n_gpu)
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
 with torch.autocast("cuda"):
     trainer.train(resume_from_checkpoint=False)
-    res = trainer.evaluate()
-    print(res)
+    # res = trainer.evaluate()
+    # print(res)
 
     model.save_pretrained("outputs_targets_new/")
 
     # p, l, m = trainer.predict(data["test"])
     # np.savetxt("data/predict_binary.csv", p, delimiter = ",")
 
-# # Inference
-# data = load_dataset("data/llm/eval")
-# print(data)
-# data = data.map(lambda samples: tokenizer(samples['quote']), batched=True)
-# print(data)
-# text = "Gute Idee und die Hassprediger auch gleich ausweisen und keine dieser Sorte mehr ins Land lassen. Gleichzeitig aber auch ein europaweites Verzeichnis pädophiler Pfaffen und diesen ein Berufsverbot auferlegen. Wird endlich Zeit dass in diesen Religionen aufgeräumt wird!"
-# prompt = '''INSTRUCTION: Toxic comment is any kind of offensive or denigrating speech against humans based on
-#         their identity (e.g., based on gender, age, nationality, political views, social views, sex, disability, appearance etc.).
-#         \nINPUT: Is this comment toxic "{}"? Answer only yes or no.'''.format(
-#             text
-#         )
-# batch = tokenizer(prompt, return_tensors='pt')
+# Inference
+device = torch.device('cuda')
 
-# with torch.cuda.amp.autocast():
-#   output_tokens = model.generate(**batch, max_new_tokens=50)
+df_eval = setup_datasets_targets_only(config_local, file=config_local.evaluation_data)
 
-# print('\n\n', tokenizer.decode(output_tokens[0], skip_special_tokens=True))
+results, targets_cat = [], []
+
+for row in df_eval.iter_rows(named=True):
+    text = row["comment_preprocessed_legacy"]
+    target_categories = ["gender", "age", "sexuality", "religion", "nationality", "disability", "social_status", "political_views", "appearance", "other"]
+    curr_targets = ""
+    for val in target_categories:
+        if row[val] == 1:
+            targets_cat.append(val)
+            val_fix = val.replace("_", " ")
+            curr_targets = curr_targets + val_fix + ", "
+    
+    if len(curr_targets) > 2:
+        curr_targets = curr_targets[:-2]
+
+
+    prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
+    Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
+    \nINPUT: What is 1 or more targets of this comment "{}"? 
+    Use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, other.'''.format(
+        text
+    )
+
+
+    batch = tokenizer(prompt, return_tensors='pt')
+
+    with torch.cuda.amp.autocast():
+        batch = batch.to(device)
+        output_tokens = model.generate(**batch, max_new_tokens=50)
+        res = tokenizer.decode(output_tokens[0], skip_special_tokens=True)
+        print('\n\n', res)
+
+        results.append(res)
+
+df_res = pd.DaraFrame(results)
+df_res["cat"] = targets_cat
+
+# df_res.to_csv("outputs_targets/results_main_eval.csv", sep=",", index=False)
