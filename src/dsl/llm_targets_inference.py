@@ -142,8 +142,8 @@ print_trainable_parameters(model)
 
 #         writer.write({"text": prompt})
 
-# data = load_dataset("data/llm_target_predict/")
-# data = data.map(lambda samples: tokenizer(samples['text']), batched=True)
+data = load_dataset("data/llm_target_predict/")
+data = data.map(lambda samples: tokenizer(samples['text']), batched=True)
 
 training_args = transformers.TrainingArguments(
         num_train_epochs=5,
@@ -170,57 +170,57 @@ print("parallel_mode: ", training_args.parallel_mode)
 print("n_gpus: ", training_args.n_gpu)
 
 model.config.use_cache = True  # silence the warnings. Please re-enable for inference!
-# with torch.autocast("cuda"):
-#     print(data["test"])
+with torch.autocast("cuda"):
+    print(data["test"])
     
-#     tmp_data = data["test"].select(range(2))
-#     print(tmp_data)
-#     p, l, m = trainer.predict(tmp_data)
-#     print('\n\n', tokenizer.decode(p[0], skip_special_tokens=True))
-#     print(l)
-#     print(m)
-#     np.savetxt("data/predict_binary.csv", p, delimiter = ",")
+    tmp_data = data["test"].select(range(2))
+    print(tmp_data)
+    p, l, m = trainer.predict(tmp_data)
+    print('\n\n', tokenizer.decode(p[0][0], skip_special_tokens=True))
+    print(l)
+    print(m)
+    np.savetxt("data/predict_binary.csv", p, delimiter = ",")
 
-# Inference
-device = torch.device('cuda')
+# # Inference
+# device = torch.device('cuda')
 
-df_eval = setup_datasets_targets_only(config_local, file=config_local.evaluation_data)
+# df_eval = setup_datasets_targets_only(config_local, file=config_local.evaluation_data)
 
-results, targets_cat = [], []
+# results, targets_cat = [], []
 
-for row in df_eval.iter_rows(named=True):
-    text = row["comment_preprocessed_legacy"]
-    target_categories = ["gender", "age", "sexuality", "religion", "nationality", "disability", "social_status", "political_views", "appearance", "other"]
-    curr_targets = ""
-    for val in target_categories:
-        if row[val] == 1:
-            targets_cat.append(val)
-            val_fix = val.replace("_", " ")
-            curr_targets = curr_targets + val_fix + ", "
+# for row in df_eval.iter_rows(named=True):
+#     text = row["comment_preprocessed_legacy"]
+#     target_categories = ["gender", "age", "sexuality", "religion", "nationality", "disability", "social_status", "political_views", "appearance", "other"]
+#     curr_targets = ""
+#     for val in target_categories:
+#         if row[val] == 1:
+#             targets_cat.append(val)
+#             val_fix = val.replace("_", " ")
+#             curr_targets = curr_targets + val_fix + ", "
     
-    if len(curr_targets) > 2:
-        curr_targets = curr_targets[:-2]
+#     if len(curr_targets) > 2:
+#         curr_targets = curr_targets[:-2]
 
 
-    prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
-    Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
-    \nINPUT: What is 1 or more targets of this comment "{}"? 
-    Use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, other.'''.format(
-        text
-    )
+#     prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
+#     Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
+#     \nINPUT: What is 1 or more targets of this comment "{}"? 
+#     Use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, other.'''.format(
+#         text
+#     )
 
 
-    batch = tokenizer(prompt, return_tensors='pt')
+#     batch = tokenizer(prompt, return_tensors='pt')
 
-    with torch.cuda.amp.autocast():
-        batch = batch.to(device)
-        output_tokens = model.generate(**batch, max_new_tokens=50)
-        res = tokenizer.decode(output_tokens[0], skip_special_tokens=True)
-        print('\n\n', res)
+#     with torch.cuda.amp.autocast():
+#         batch = batch.to(device)
+#         output_tokens = model.generate(**batch, max_new_tokens=50)
+#         res = tokenizer.decode(output_tokens[0], skip_special_tokens=True)
+#         print('\n\n', res)
 
-        results.append(res)
+#         results.append(res)
 
-df_res = pd.DaraFrame(results)
-df_res["cat"] = targets_cat
+# df_res = pd.DaraFrame(results)
+# df_res["cat"] = targets_cat
 
-df_res.to_csv("outputs_targets/results_main_eval.csv", sep=",", index=False)
+# df_res.to_csv("outputs_targets/results_main_eval.csv", sep=",", index=False)
