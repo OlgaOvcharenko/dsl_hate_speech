@@ -216,9 +216,9 @@ for row in df_eval.iter_rows(named=True):
         batch = batch.to(device)
         output_tokens = model.generate(**batch, max_new_tokens=50)
         res = tokenizer.decode(output_tokens[0], skip_special_tokens=True)
-        print('\n\n', )
+        print('\n\n', res)
 
-        results.append[res]
+        results.append(res)
 
 df_res = pd.DaraFrame(results)
 df_res["cat"] = targets_cat
