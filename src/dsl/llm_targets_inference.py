@@ -154,7 +154,7 @@ training_args = transformers.TrainingArguments(
         fp16=True,
         logging_steps=1, 
         output_dir='outputs_targets',
-        eval_accumulation_steps=2
+        eval_accumulation_steps=1
     )
 
 trainer = transformers.Trainer(
@@ -171,8 +171,9 @@ print("n_gpus: ", training_args.n_gpu)
 model.config.use_cache = True  # silence the warnings. Please re-enable for inference!
 with torch.autocast("cuda"):
     print(data["test"])
-
-    p, l, m = trainer.predict(data["test"])
+    
+    tmp_data = data["test"].select(range(100))
+    p, l, m = trainer.predict(tmp_data)
     np.savetxt("data/predict_binary.csv", p, delimiter = ",")
 
 # # Inference
