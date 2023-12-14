@@ -187,7 +187,7 @@ training_args = transformers.TrainingArguments(
         learning_rate=2e-4, 
         fp16=True,
         logging_steps=1, 
-        output_dir='outputs_targets'
+        output_dir='outputs_targets_new'
     )
 
 trainer = transformers.Trainer(
@@ -203,11 +203,11 @@ print("n_gpus: ", training_args.n_gpu)
 
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
 with torch.autocast("cuda"):
-    trainer.train(resume_from_checkpoint=True)
+    trainer.train(resume_from_checkpoint=False)
     res = trainer.evaluate()
     print(res)
 
-    model.save_pretrained("outputs_targets/")
+    model.save_pretrained("outputs_targets_new/")
 
     # p, l, m = trainer.predict(data["test"])
     # np.savetxt("data/predict_binary.csv", p, delimiter = ",")
