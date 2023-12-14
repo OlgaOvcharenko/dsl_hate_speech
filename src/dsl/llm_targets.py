@@ -14,8 +14,6 @@ from datasets import load_dataset
 import jsonlines
 import wandb
 import yaml
-from accelerate import dispatch_model, infer_auto_device_map
-from accelerate.utils import get_balanced_memory
 import pandas as pd
 
 from huggingface_hub import login
@@ -214,6 +212,7 @@ with torch.autocast("cuda"):
     # np.savetxt("data/predict_binary.csv", p, delimiter = ",")
 
 # Inference
+model.config.use_cache = True
 device = torch.device('cuda')
 
 df_eval = setup_datasets_targets_only(config_local, file=config_local.evaluation_data)
