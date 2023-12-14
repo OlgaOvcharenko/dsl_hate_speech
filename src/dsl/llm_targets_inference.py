@@ -56,19 +56,22 @@ match wandb.config["base_model"]:
 config_local = wandb.config
 
 
-model_path = "outputs_targets/"
-model = AutoModelForCausalLM.from_pretrained( 
-    model_path,
-    #device_map='auto',
-    quantization_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16
-    ),
-    device_map={'':torch.cuda.current_device()},
-    torch_dtype = torch.bfloat16
-)
+model_path = "meta-llama/Llama-2-7b-hf"
+# model = AutoModelForCausalLM.from_pretrained( 
+#     model_path,
+#     #device_map='auto',
+#     quantization_config = BitsAndBytesConfig(
+#         load_in_4bit=True,
+#         bnb_4bit_use_double_quant=True,
+#         bnb_4bit_quant_type="nf4",
+#         bnb_4bit_compute_dtype=torch.bfloat16
+#     ),
+#     device_map={'':torch.cuda.current_device()},
+#     torch_dtype = torch.bfloat16
+# )
+
+peft_model_id = "outputs_targets"
+model = AutoModelForCausalLM.from_pretrained(peft_model_id)
 
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 tokenizer.pad_token = tokenizer.eos_token
@@ -100,16 +103,16 @@ def print_trainable_parameters(model):
         f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
     )
 
-config = LoraConfig(
-    r=16,
-    lora_alpha=32,
-    target_modules=["q_proj", "v_proj"],
-    lora_dropout=0.05,
-    bias="none",
-    task_type="CAUSAL_LM"
-)
+# config = LoraConfig(
+#     r=16,
+#     lora_alpha=32,
+#     target_modules=["q_proj", "v_proj"],
+#     lora_dropout=0.05,
+#     bias="none",
+#     task_type="CAUSAL_LM"
+# )
 
-model = get_peft_model(model, config)
+# model = get_peft_model(model, config)
 print_trainable_parameters(model)
 
 df_eval = setup_datasets_targets_only(config_local, file=config_local.evaluation_data)
