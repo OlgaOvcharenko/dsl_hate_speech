@@ -172,7 +172,7 @@ model.config.use_cache = True  # silence the warnings. Please re-enable for infe
 with torch.autocast("cuda"):
     print(data["test"])
     
-    tmp_data = data["test"].select(range(2))
+    tmp_data = data["test"].select(0)
     print(tmp_data)
     p, l, m = trainer.predict(tmp_data)
     print('\n\n', tokenizer.decode(p, skip_special_tokens=True))
