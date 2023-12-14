@@ -92,7 +92,7 @@ def train_few(train, test, comment_col):
     
     trainer = ModelTrainer(tars, corpus)
     trainer.train(base_path='few_shot/target', 
-                  mini_batch_size=16, 
+                  mini_batch_size=8, 
                   max_epochs=30, 
                   learning_rate=0.001,
                   save_final_model=True,
