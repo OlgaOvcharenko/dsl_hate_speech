@@ -176,6 +176,7 @@ with torch.autocast("cuda"):
     tmp_data = data["test"].select(range(2))
     print(tmp_data)
     p, l, m = trainer.predict(tmp_data)
+    print(p)
     print('\n\n', tokenizer.decode(p[0][0], skip_special_tokens=True))
     print(l)
     print(m)
