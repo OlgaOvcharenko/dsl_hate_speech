@@ -178,7 +178,7 @@ data = load_dataset("data/llm_target/")
 data = data.map(lambda samples: tokenizer(samples['text']), batched=True)
 
 training_args = transformers.TrainingArguments(
-        num_train_epochs=5,
+        num_train_epochs=15,
         per_device_train_batch_size=4, 
         gradient_accumulation_steps=4,
         warmup_steps=100, 
@@ -201,14 +201,14 @@ print("parallel_mode: ", training_args.parallel_mode)
 print("n_gpus: ", training_args.n_gpu)
 
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
-# with torch.autocast("cuda"):
-#     trainer.train(resume_from_checkpoint=False)
-#     res = trainer.evaluate()
-#     print(res)
-#     model.save_pretrained("outputs_targets_new/")
+with torch.autocast("cuda"):
+    trainer.train(resume_from_checkpoint=False)
+    res = trainer.evaluate()
+    print(res)
+    model.save_pretrained("outputs_targets_new/")
 
-#     p, l, m = trainer.predict(data["test"])
-#     np.savetxt("data/predict_binary.csv", p, delimiter = ",")
+    # p, l, m = trainer.predict(data["test"])
+    # np.savetxt("data/predict_binary.csv", p, delimiter = ",")
 
 
 # Inference
@@ -259,3 +259,4 @@ df_res = pd.DataFrame(results)
 df_res["cat"] = targets_cat
 
 df_res.to_csv("outputs_targets_new/results_main_eval.csv", sep=",", index=False)
+
