@@ -16,6 +16,7 @@ mkdir -p outputs
 mkdir -p outputs_targets
 mkdir -p data/llm_target
 mkdir -p outputs_targets_new
+mkdir -p outputs_targets_mistral
 mkdir -p data/llm_target_predict
 
 module load eth_proxy gcc/11.4.0 python/3.11.6 cuda/12.1.1 
