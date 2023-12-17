@@ -188,7 +188,7 @@ training_args = transformers.TrainingArguments(
         learning_rate=2e-4, 
         fp16=True,
         logging_steps=1, 
-        output_dir='outputs_targets_new'
+        output_dir='outputs_targets_mistral'
     )
 
 trainer = transformers.Trainer(
@@ -207,7 +207,7 @@ with torch.autocast("cuda"):
     trainer.train(resume_from_checkpoint=False)
     res = trainer.evaluate()
     print(res)
-    model.save_pretrained("outputs_targets_new/")
+    model.save_pretrained("outputs_targets_mistral/")
 
 
 # Inference
@@ -257,5 +257,5 @@ for row in df_eval.iter_rows(named=True):
 df_res = pd.DataFrame(results)
 df_res["cat"] = targets_cat
 
-df_res.to_csv("outputs_targets_new/results_main_eval.csv", sep=",", index=False)
+df_res.to_csv("outputs_targets_mistral/results_main_eval.csv", sep=",", index=False)
 
