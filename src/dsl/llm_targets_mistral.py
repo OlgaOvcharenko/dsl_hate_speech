@@ -111,31 +111,31 @@ config = LoraConfig(
 model = get_peft_model(model, config)
 print_trainable_parameters(model)
 
-# df_train = setup_datasets_targets_only(config_local, file=config_local.train_data)
-# with jsonlines.open("data/llm_target/train.jsonl", mode="w") as writer:
-#     for row in df_train.iter_rows(named=True):
-#         text = row["comment_preprocessed_legacy"]
-#         target_categories = ["gender", "age", "sexuality", "religion", "nationality", "disability", "social_status", "political_views", "appearance", "other"]
-#         if len(text) < 500:
-#             curr_targets = ""
-#             for val in target_categories:
-#                 if row[val] == 1:
-#                     val_fix = val.replace("_", " ")
-#                     curr_targets = curr_targets + val_fix + ", "
+df_train = setup_datasets_targets_only(config_local, file=config_local.train_data)
+with jsonlines.open("data/llm_target/train.jsonl", mode="w") as writer:
+    for row in df_train.iter_rows(named=True):
+        text = row["comment_preprocessed_legacy"]
+        target_categories = ["gender", "age", "sexuality", "religion", "nationality", "disability", "social_status", "political_views", "appearance", "other"]
+        if len(text) < 400:
+            curr_targets = ""
+            for val in target_categories:
+                if row[val] == 1:
+                    val_fix = val.replace("_", " ")
+                    curr_targets = curr_targets + val_fix + ", "
         
-#             if len(curr_targets) > 2:
-#                 curr_targets = curr_targets[:-2]
+            if len(curr_targets) > 2:
+                curr_targets = curr_targets[:-2]
 
 
-#             prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
-#             Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
-#             \nINPUT: What is 1 or more targets of this comment "{}"? 
-#             Think step by step but use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, and other. 
-#             \nOUTPUT: {}.'''.format(
-#                 text, curr_targets
-#             )
+            prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
+            Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
+            \nINPUT: What is 1 or more targets of this comment "{}"? 
+            Think step by step but use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, and other. 
+            \nOUTPUT: {}.'''.format(
+                text, curr_targets
+            )
 
-#             writer.write({"text": prompt})
+            writer.write({"text": prompt})
 
 # df_eval = setup_datasets_targets_only(config_local, file=config_local.evaluation_data)
 # with jsonlines.open("data/llm_target/validation.jsonl", mode="w") as writer:
