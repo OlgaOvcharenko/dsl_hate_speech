@@ -57,7 +57,7 @@ match wandb.config["base_model"]:
 config_local = wandb.config
 
 
-model_path = "meta-llama/Llama-2-7b-hf"
+model_path = "mistralai/Mistral-7B-v0.1"
 # model = AutoModelForCausalLM.from_pretrained( 
 #     model_path,
 #     #device_map='auto',
@@ -71,7 +71,7 @@ model_path = "meta-llama/Llama-2-7b-hf"
 #     torch_dtype = torch.bfloat16
 # )
 
-peft_model_id = "outputs_targets"
+peft_model_id = "outputs_targets_mistral_5"
 model = AutoModelForCausalLM.from_pretrained(peft_model_id)
 
 tokenizer = AutoTokenizer.from_pretrained(model_path)
