@@ -55,7 +55,7 @@ match wandb.config["base_model"]:
 config_local = wandb.config
 
 
-model_path = "meta-llama/Llama-2-7b-hf"
+model_path = "mistralai/Mistral-7B-v0.1"
 model = AutoModelForCausalLM.from_pretrained( 
     model_path,
     #device_map='auto',
@@ -116,7 +116,7 @@ with jsonlines.open("data/llm_target/train.jsonl", mode="w") as writer:
     for row in df_train.iter_rows(named=True):
         text = row["comment_preprocessed_legacy"]
         target_categories = ["gender", "age", "sexuality", "religion", "nationality", "disability", "social_status", "political_views", "appearance", "other"]
-        if len(text) < 500:
+        if len(text) < 400:
             curr_targets = ""
             for val in target_categories:
                 if row[val] == 1:
@@ -137,31 +137,31 @@ with jsonlines.open("data/llm_target/train.jsonl", mode="w") as writer:
 
             writer.write({"text": prompt})
 
-df_eval = setup_datasets_targets_only(config_local, file=config_local.evaluation_data)
-with jsonlines.open("data/llm_target/validation.jsonl", mode="w") as writer:
-    for row in df_eval.iter_rows(named=True):
-        text = row["comment_preprocessed_legacy"]
-        target_categories = ["gender", "age", "sexuality", "religion", "nationality", "disability", "social_status", "political_views", "appearance", "other"]
-        if len(text) < 500:
-            curr_targets = ""
-            for val in target_categories:
-                if row[val] == 1:
-                    val_fix = val.replace("_", " ")
-                    curr_targets = curr_targets + val_fix + ", "
+# df_eval = setup_datasets_targets_only(config_local, file=config_local.evaluation_data)
+# with jsonlines.open("data/llm_target/validation.jsonl", mode="w") as writer:
+#     for row in df_eval.iter_rows(named=True):
+#         text = row["comment_preprocessed_legacy"]
+#         target_categories = ["gender", "age", "sexuality", "religion", "nationality", "disability", "social_status", "political_views", "appearance", "other"]
+#         if len(text) < 500:
+#             curr_targets = ""
+#             for val in target_categories:
+#                 if row[val] == 1:
+#                     val_fix = val.replace("_", " ")
+#                     curr_targets = curr_targets + val_fix + ", "
             
-            if len(curr_targets) > 2:
-                curr_targets = curr_targets[:-2]
+#             if len(curr_targets) > 2:
+#                 curr_targets = curr_targets[:-2]
 
 
-            prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
-            Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
-            \nINPUT: What is 1 or more targets of this comment "{}"? 
-            Think step by step but use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, and other. 
-            \nOUTPUT: {}.'''.format(
-                text, curr_targets
-            )
+#             prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
+#             Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
+#             \nINPUT: What is 1 or more targets of this comment "{}"? 
+#             Think step by step but use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, and other. 
+#             \nOUTPUT: {}.'''.format(
+#                 text, curr_targets
+#             )
 
-            writer.write({"text": prompt})
+#             writer.write({"text": prompt})
 
 # with jsonlines.open("data/llm_target/test.jsonl", mode="w") as writer:
 #     for row in df_eval.iter_rows(named=True):
@@ -180,7 +180,7 @@ data = load_dataset("data/llm_target/")
 data = data.map(lambda samples: tokenizer(samples['text']), batched=True)
 
 training_args = transformers.TrainingArguments(
-        num_train_epochs=7,
+        num_train_epochs=5,
         per_device_train_batch_size=3, 
         gradient_accumulation_steps=3,
         warmup_steps=100, 
@@ -188,7 +188,7 @@ training_args = transformers.TrainingArguments(
         learning_rate=2e-4, 
         fp16=True,
         logging_steps=1, 
-        output_dir='outputs_targets_new'
+        output_dir='outputs_targets_mistral'
     )
 
 trainer = transformers.Trainer(
@@ -205,7 +205,9 @@ print("n_gpus: ", training_args.n_gpu)
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
 with torch.autocast("cuda"):
     trainer.train(resume_from_checkpoint=False)
-    model.save_pretrained("outputs_targets_new/")
+    res = trainer.evaluate()
+    print(res)
+    model.save_pretrained("outputs_targets_mistral/")
 
 
 # Inference
@@ -255,5 +257,5 @@ for row in df_eval.iter_rows(named=True):
 df_res = pd.DataFrame(results)
 df_res["cat"] = targets_cat
 
-df_res.to_csv("outputs_targets_new/results_main_eval.csv", sep=",", index=False)
+df_res.to_csv("outputs_targets_mistral/results_main_eval.csv", sep=",", index=False)
 

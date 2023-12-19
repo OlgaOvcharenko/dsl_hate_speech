@@ -20,4 +20,4 @@ def save_model_local(
     AutoTokenizer.from_pretrained(model_id).save_pretrained(tokenizer_path)
 
 
-save_model_local(model_id="meta-llama/Llama-2-13b-hf")
+save_model_local(model_id="mistralai/Mistral-7B-v0.1")

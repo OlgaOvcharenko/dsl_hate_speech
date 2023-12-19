@@ -183,3 +183,7 @@ few_shot/
 outputs_7b/
 outputs_targets/
 outputs_targets_new/
+
+outputs_targets_mistral/
+outputs_targets_mistral_5/
+

@@ -180,15 +180,15 @@ data = load_dataset("data/llm_target/")
 data = data.map(lambda samples: tokenizer(samples['text']), batched=True)
 
 training_args = transformers.TrainingArguments(
-        num_train_epochs=15,
-        per_device_train_batch_size=2, 
-        gradient_accumulation_steps=2,
+        num_train_epochs=7,
+        per_device_train_batch_size=3, 
+        gradient_accumulation_steps=3,
         warmup_steps=100, 
         # max_steps=200, 
         learning_rate=2e-4, 
         fp16=True,
         logging_steps=1, 
-        output_dir='outputs_targets_mistral'
+        output_dir='outputs_targets_mistral_5'
     )
 
 trainer = transformers.Trainer(
@@ -207,7 +207,7 @@ with torch.autocast("cuda"):
     trainer.train(resume_from_checkpoint=False)
     res = trainer.evaluate()
     print(res)
-    model.save_pretrained("outputs_targets_mistral/")
+    model.save_pretrained("outputs_targets_mistral_5/")
 
 
 # Inference
@@ -257,5 +257,5 @@ for row in df_eval.iter_rows(named=True):
 df_res = pd.DataFrame(results)
 df_res["cat"] = targets_cat
 
-df_res.to_csv("outputs_targets_mistral/results_main_eval.csv", sep=",", index=False)
+df_res.to_csv("outputs_targets_mistral_5/results_main_eval.csv", sep=",", index=False)
 
