@@ -9,7 +9,7 @@ df_pred = pd.DataFrame(0, index=np.arange(5801), columns=["gender", "age", "sexu
 df_eval = pd.read_csv("data/processed_evaluation_main_v4.csv")
 df_eval = df_eval[df_eval["targeted"]==1]
 
-f = open("llama_zero_shot.out", "r")
+f = open("log-40926182.out", "r")
 raw = f.read()
 
 split_raw = [val.split("Decoded")[1] for val in raw.split("Generate prompt")[1:]]
@@ -21,7 +21,7 @@ for i in range(df_eval.shape[0]):
     text = df_eval["comment_preprocessed_legacy"].iloc[i]
     
     print(split_raw[i].replace("\n", "").split("OUTPUT:"))
-    out_raw = split_raw[i].replace("\n", "").split("OUTPUT:")[1] if 
+    out_raw = split_raw[i].replace("\n", "").split("OUTPUT:")[1]
 
     for j in range(len(target_categories)):
         if target_categories[j] in out_raw:

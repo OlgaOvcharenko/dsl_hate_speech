@@ -69,7 +69,7 @@ model = AutoModelForCausalLM.from_pretrained(
     torch_dtype = torch.bfloat16
 )
 
-tokenizer = AutoTokenizer.from_pretrained(model_path)
+tokenizer = AutoTokenizer.from_pretrained(model_path, )
 tokenizer.pad_token = tokenizer.eos_token
 
 for param in model.parameters():
@@ -127,11 +127,8 @@ with jsonlines.open("data/llm_target/train.jsonl", mode="w") as writer:
                 curr_targets = curr_targets[:-2]
 
 
-            prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
-            Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
-            \nINPUT: What is 1 or more targets of this comment "{}"? 
-            Think step by step but use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, and other. 
-            \nOUTPUT: {}.'''.format(
+            prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
+            INPUT: What is 1 or more targets of this comment "{}"? Think step by step but use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, and other. OUTPUT: {}.'''.format(
                 text, curr_targets
             )
 
@@ -177,7 +174,7 @@ with jsonlines.open("data/llm_target/train.jsonl", mode="w") as writer:
 #         writer.write({"text": prompt})
 
 data = load_dataset("data/llm_target/")
-data = data.map(lambda samples: tokenizer(samples['text']), batched=True)
+data = data.map(lambda samples: tokenizer(samples['text'], batched=True, truncation=True, padding="max_length"))
 
 training_args = transformers.TrainingArguments(
         num_train_epochs=5,
@@ -233,12 +230,10 @@ for row in df_eval.iter_rows(named=True):
     
     targets_cat.append(curr_targets)
 
-    prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
-    Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
-    \nINPUT: What is 1 or more targets of this comment "{}"? 
-    Think step by step but use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, and other.'''.format(
-        text
-    )
+    prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
+            INPUT: What is 1 or more targets of this comment "{}"? Think step by step but use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, and other. OUTPUT: '''.format(
+                text
+            )
 
     print("Generate prompt")
     batch = tokenizer(prompt, return_tensors='pt')
@@ -246,7 +241,7 @@ for row in df_eval.iter_rows(named=True):
 
     with torch.cuda.amp.autocast():
         batch = batch.to(device)
-        output_tokens = model.generate(**batch, max_new_tokens=50)
+        output_tokens = model.generate(**batch, truncation=True, padding="max_length")
 
         print("Output tokens", output_tokens)
 
