@@ -174,7 +174,7 @@ with jsonlines.open("data/llm_target/train.jsonl", mode="w") as writer:
 #         writer.write({"text": prompt})
 
 data = load_dataset("data/llm_target/")
-data = data.map(lambda samples: tokenizer(samples['text'], truncation=True, padding="max_length") batched=True)
+data = data.map(lambda samples: tokenizer(samples['text'], truncation=True, padding="max_length"), batched=True)
 
 training_args = transformers.TrainingArguments(
         num_train_epochs=5,
