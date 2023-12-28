@@ -9,7 +9,7 @@ df_pred = pd.DataFrame(0, index=np.arange(5801), columns=["gender", "age", "sexu
 df_eval = pd.read_csv("data/processed_evaluation_main_v4.csv")
 df_eval = df_eval[df_eval["targeted"]==1]
 
-f = open("log-40926182.out", "r")
+f = open("llama_7ep_cot.out", "r")
 raw = f.read()
 
 split_raw = [val.split("Decoded")[1] for val in raw.split("Generate prompt")[1:]]
