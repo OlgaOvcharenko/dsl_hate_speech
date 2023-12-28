@@ -192,3 +192,4 @@ outputs_targets_mistral_5/
 cache/
 few_shot/
 log-39764097.out
+.vscode
