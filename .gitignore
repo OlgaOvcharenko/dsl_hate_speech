@@ -172,5 +172,24 @@ models_local/
 models/
 copy_model.sh
 
+outputs
 .idea
+
+
+.venv_llama/
+cache/
+
+few_shot/
+outputs_7b/
+outputs_targets/
+outputs_targets_new/
+
+outputs_targets_mistral/
+outputs_targets_mistral_5/
+
+
+.venv_llama/
+cache/
+few_shot/
+log-39764097.out
 .vscode

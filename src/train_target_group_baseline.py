@@ -14,12 +14,12 @@ optimizer_config = {
 training_config = {
     "epochs": 10,
     "batch_size": 16,
-    "debug_subset": None,
-    "log_every_nth_step": 512,
-    "checkpoint_every_nth_epoch": 1,
-    "log_n_worst": 100,
+    "dataset_portion": None,
+    "logging_period": 512,
+    "checkpoint_period": 1,
+    "examples_to_log": 100,
     "log_model_to_wandb": True,
-    "reweigh_loss": "effective_num",
+    "class_weight": "effective_num",
     "beta": 0.999,
 }
 

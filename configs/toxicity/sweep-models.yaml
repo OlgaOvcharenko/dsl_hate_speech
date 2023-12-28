@@ -1,0 +1,10 @@
+program: src/train_toxicity_baseline.py
+method: grid
+metric:
+  name: validation/loss
+  goal: minimize
+parameters:
+  base_model:
+    value: "xlm-roberta-large"
+  learning_rate:
+    values: [1e-4, 6e-5, 5e-6]

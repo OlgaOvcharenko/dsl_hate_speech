@@ -1,9 +1,11 @@
+adapter-transformers
 aiohttp
 aiosignal
 async-timeout
 attrs
 black
 certifi
+emoji
 filelock
 frozenlist
 fsspec
@@ -21,6 +23,7 @@ networkx
 numpy
 packaging
 pandas
+peft
 polars
 pylama
 python-dateutil
@@ -35,9 +38,16 @@ torch
 torchmetrics
 tqdm
 transformers
+tweet-preprocessor
 typing_extensions
 tzdata
 urllib3
 wandb
 yarl
-tweet-preprocessor
+jsonlines
+typing-extensions
+sympy
+fsspec
+jinja2
+networkx
+flair
