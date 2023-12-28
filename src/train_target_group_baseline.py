@@ -2,6 +2,8 @@ import wandb
 from dsl.models import MultiLabelModule
 from dsl.runner import train_and_eval
 
+user = "oovcharenko" if True else "ewybitul"
+
 optimizer_config = {
     "optimizer": "SGD",
     "learning_rate": 1e-4,
@@ -23,8 +25,8 @@ training_config = {
 
 model_config = {
     "model_name": "target-group-detection-baseline",
-    "model_directory": "/cluster/scratch/ewybitul/models",
-    "model": "Hate-speech-CNERG/dehatebert-mono-german_labels=10",
+    "model_dir": f"/cluster/scratch/{user}/models",
+    "base_model_id": "Hate-speech-CNERG/dehatebert-mono-german_labels=10",
     "layers_to_freeze": list(range(11)),
 }
 

@@ -2,7 +2,7 @@ import time
 from pathlib import Path
 from typing import Callable, Optional
 
-# import bitsandbytes as bnb
+import bitsandbytes as bnb
 import polars as pr
 import torch
 from accelerate import Accelerator
@@ -273,20 +273,14 @@ def _evaluate(
             logits = outputs.logits
             loss = loss_fn(logits, labels)
 
+            metrics.to(device)
+
             preds = logits.softmax(dim=1)
             metrics.update(
                 value=loss,
                 preds=preds[:, 1] if len(class_names) > 1 else preds,
                 target=labels.long(),
             )
-            if stage == "evaluation":
-                macro_f1.update(preds=preds, target=labels.long())  # type: ignore
-            # f1_curve.update(
-            #     preds=logits.softmax(dim=1),
-            #     target=labels.long()
-            #     if len(class_names) > 2
-            #     else F.one_hot(labels, num_classes=2),
-            # )
 
             if log_examples:
                 comments_batched.append(comments_text[idx.tolist()])

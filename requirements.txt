@@ -50,3 +50,4 @@ sympy
 fsspec
 jinja2
 networkx
+flair

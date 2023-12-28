@@ -4,6 +4,8 @@ import wandb
 from dsl.models import MultiClassAdapterModule
 from dsl.runner import train_and_eval
 
+user = "oovcharenko" if True else "ewybitul"
+
 config = {}
 with open("configs/defaults.yaml") as f:
     base_config = yaml.load(f, Loader=yaml.FullLoader)

@@ -15,9 +15,17 @@ def save_model_local(
     tokenizer_path = f"{model_dir}/{model_id}_tokenizer"
     AutoModelForCausalLM.from_pretrained(
         model_id,
+        #num_labels=num_labels,
+        problem_type=problem_type,
         ignore_mismatched_sizes=True,
     ).save_pretrained(model_path)
     AutoTokenizer.from_pretrained(model_id).save_pretrained(tokenizer_path)
 
 
 save_model_local(model_id="mistralai/Mistral-7B-v0.1")
+# save_model_local(
+#     model_id="bert-base-german-cased",
+#     model_path="models/bert-base-uncased_model",
+#     tokenizer_path="models/bert-base-uncased_tokenizer",
+#     #num_labels=2,
+# )
