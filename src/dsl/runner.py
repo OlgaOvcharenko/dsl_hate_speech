@@ -7,6 +7,7 @@ from dsl.datasets import (
     setup_datasets,
     setup_loader,
 )
+from dsl.models import InductionModel, MultiClassAdapterModule
 from dsl.train import evaluate, train
 from dsl.utils import seed_everywhere
 
@@ -31,7 +32,7 @@ def train_and_eval(model: torch.nn.modules.module.Module, config: wandb.Config):
         )
     elif config.class_weight == "inverse_frequency":
         class_weights = class_weights_inverse_frequency(
-            train_df, config.class_names
+            train_df, ["non_targeted", "targeted"]
         )
 
     if class_weights is not None:
@@ -54,11 +55,11 @@ def train_and_eval(model: torch.nn.modules.module.Module, config: wandb.Config):
         for name, (eval_df, eval_dataset) in zip(
             names, setup_datasets(config, stage="test")
         ):
-            prefix = f"evaluation/{name}"
             eval_loader = setup_loader(
                 eval_dataset, shuffle=False, batch_size=config.batch_size
             )
             print(f"Starting evaluation with {len(eval_df)} examples...")
+            prefix = f"evaluation-{name}"
             evaluate(
                 model=best_model,
                 comments_text=eval_df["comment"],

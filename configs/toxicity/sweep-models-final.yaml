@@ -5,6 +5,6 @@ metric:
   goal: minimize
 parameters:
   base_model:
-    values: ["xlm-roberta-large", "microsoft/mdeberta-v3-base", "bert-base-multilingual-cased", "microsoft/deberta-v3-large", "dbmdz/german-gpt2"]
+    values: ["xlm-roberta-base"]
   learning_rate:
-    values: [1.0e-5, 5.0e-5, 0.9e-4, 1.0e-4, 2.0e-4, 3.0e-4]
+    values: [5.0e-5, 1.0e-4, 2.0e-4]

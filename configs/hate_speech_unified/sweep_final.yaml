@@ -1,0 +1,12 @@
+method: bayes
+metric:
+  goal: minimize
+  name: validation/loss
+parameters:
+  learning_rate:
+    max: 5.0e-4
+    min: 1.0e-5
+  train_set_balance:
+    max: 0.9
+    min: 0.6
+program: src/train_hate_speech_unified.py

@@ -1,7 +1,7 @@
 task: "hate_speech_unified"
 class_names: ["non_hate_speech", "hate_speech"]
 
-beta1: 0.8862422371811743
+beta1: 0.9
 beta2: 0.999
 
 model: "hate-speech-unified"
@@ -9,9 +9,8 @@ model: "hate-speech-unified"
 epochs: 5
 
 warmup_ratio: 0.1
-weight_decay: 0.0908237442615608
+weight_decay: 0.1
 
-learning_rate: 0.0002709645857094042
 hidden_dropout_prob: 0.1
 
 early_stopping_enabled: False

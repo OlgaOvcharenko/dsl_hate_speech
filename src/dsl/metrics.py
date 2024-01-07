@@ -54,7 +54,14 @@ def setup_metrics(num_classes: int, stage: str, prefix: str | None = None):
 
 def setup_macro_f1(prefix: str):
     return MetricCollection(
-        {"macro_f1": F1Score(average="macro", task="multiclass", num_classes=2)},
+        {
+            "macro_f1": F1Score(
+                average="macro", task="multiclass", num_classes=2
+            ),
+            "weighted_f1": F1Score(
+                average="weighted", task="multiclass", num_classes=2
+            ),
+        },
         prefix=f"{prefix}/",
     )
 
@@ -73,7 +80,9 @@ def process_metrics(metric_values: dict[str, Any], class_names: list[str]):
 def log_sample_predictions(
     comments, predictions, true_labels, probabilities, class_names, prefix
 ):
-    table = wandb.Table(columns=["comment", "prediction", "target", *class_names])
+    table = wandb.Table(
+        columns=["comment", "prediction", "target", *class_names]
+    )
     for text, pred, targ, prob in zip(
         comments,
         predictions.to("cpu"),

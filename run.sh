@@ -5,7 +5,7 @@
 #SBATCH --gpus=1
 #SBATCH --gres=gpumem:25g
 #SBATCH --cpus-per-task=6
-#SBATCH --mem-per-cpu=16G
+#SBATCH --mem-per-cpu=8G
 #SBATCH --time=04:00:00
 
 mkdir -p logs

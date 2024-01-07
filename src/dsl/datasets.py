@@ -138,26 +138,47 @@ def setup_datasets(config: wandb.Config, stage: str):
         df, comments, labels = _load_data(config.train_data, cols)
         comments, labels = _take_dataset_portion(comments, labels, config)
 
-        train_c, train_l, val_c, val_l = _split(comments, labels, config)
+        if config.validation_enabled:
+            train_c, train_l, val_c, val_l = _split(comments, labels, config)
+        else:
+            train_c, train_l = comments, labels
+            val_c, val_l = (
+                np.array([]).reshape(0, 0),
+                np.array([]).reshape(0, 0),
+            )
+
         if config.task == "hate_speech_unified":
-            # Drop untargeted toxic comments from the train set, as per the paper
+            # Balance the dataset
             is_toxic = train_l[:, 0] == 1
             is_targeted = train_l[:, 1] == 1
-            indices = ~(is_toxic & ~is_targeted)
+            num_positive = is_targeted.sum().int().item()
 
-            train_c = train_c[indices]
+            not_toxic = torch.argwhere((~is_targeted))
+            unif = torch.ones(not_toxic.shape[0])
+            keep_count = (
+                not_toxic.shape[0] - num_positive
+            ) * config.train_set_balance + num_positive
+            idx = unif.multinomial(int(keep_count), replacement=False)
+            keep = is_targeted
+            keep[not_toxic[idx]] = True
+
+            train_c = train_c[keep]
             # Label is: (toxic and) targeted
-            train_l = train_l[indices, 1].unsqueeze(1)
+            df = pr.DataFrame(
+                {
+                    "comment": np.concatenate(
+                        [train_c, val_c], axis=0
+                    ).tolist(),
+                    "toxic": torch.cat(
+                        [train_l[keep, 0], val_l[:, 0]], dim=0
+                    ).tolist(),
+                    "targeted": torch.cat(
+                        [train_l[keep, 1], val_l[:, 1]], dim=0
+                    ).tolist(),
+                }
+            )
 
-            # Evaluate on all comments, label is: (toxic and) targeted
-            val_l = val_l[:, 1].unsqueeze(1)
-        if config.task == "hate_speech_split":
-            # Drop non-toxic comments from the train and val set
-            is_toxic = train_l[:, 0] == 1
-
-            train_c = train_c[is_toxic]
-            train_l = train_l[is_toxic, 1].unsqueeze(1)
-
+            train_l = train_l[keep, 1].unsqueeze(1)
             # Evaluate on all comments, label is: (toxic and) targeted
             val_l = val_l[:, 1].unsqueeze(1)
 
@@ -178,9 +199,6 @@ def setup_datasets(config: wandb.Config, stage: str):
             remove_umlauts=config.transform_remove_umlauts,
         )
 
-        if config.task in ["hate_speech_unified", "hate_speech_split"]:
-            df = df.filter(pr.col("targeted") == 1)
-
         return df, train_dataset, val_dataset
     elif stage == "test":
         return [
@@ -191,9 +209,13 @@ def setup_datasets(config: wandb.Config, stage: str):
 
 def _take_dataset_portion(comments, labels, config):
     if config.dataset_portion < 1:
-        _, _, comments, labels = _split(
-            comments, labels, config, size=config.dataset_portion
-        )
+        if config.dataset_portion * len(comments) > 100:
+            _, _, comments, labels = _split(
+                comments, labels, config, size=config.dataset_portion
+            )
+        else:
+            comments = comments[:100]
+            labels = labels[:100]
     return comments, labels
 
 

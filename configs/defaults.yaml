@@ -18,6 +18,7 @@ adapter_type: "default"
 
 # TRAINING
 seed: 42
+validation_enabled: True
 validation_split: 0.1
 batch_size: 16
 create_checkpoints: True

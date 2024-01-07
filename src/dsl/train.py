@@ -30,7 +30,9 @@ def _get_optimizer(config: wandb.Config, model: torch.nn.Module):
             params, lr=lr, momentum=config.momentum, nesterov=True
         )
     elif config.optimizer == "adam":
-        optimizer = torch.optim.Adam(params, lr=lr, betas=(config.beta1, config.beta2))
+        optimizer = torch.optim.Adam(
+            params, lr=lr, betas=(config.beta1, config.beta2)
+        )
     elif config.optimizer == "adamw":
         optimizer = torch.optim.AdamW(
             params,
@@ -47,7 +49,9 @@ def _get_loss(classes_num: int, class_weights: Optional[torch.Tensor] = None):
     if classes_num == 2:
         return torch.nn.CrossEntropyLoss(weight=class_weights, reduction="none")
     else:
-        return torch.nn.BCEWithLogitsLoss(weight=class_weights, reduction="none")
+        return torch.nn.BCEWithLogitsLoss(
+            weight=class_weights, reduction="none"
+        )
 
 
 class ExponentialLR(_LRScheduler):
@@ -80,7 +84,9 @@ class ExponentialLR(_LRScheduler):
         else:
             r = self.last_epoch / (self.num_iter - 1)
 
-        return [base_lr * (self.end_lr / base_lr) ** r for base_lr in self.base_lrs]
+        return [
+            base_lr * (self.end_lr / base_lr) ** r for base_lr in self.base_lrs
+        ]
 
 
 def train(
@@ -94,7 +100,9 @@ def train(
     assert wandb.run is not None
     # wandb.watch(model, log="all", log_freq=1024)
 
-    checkpoint_path = Path(config.model_directory) / "checkpoints" / wandb.run.name
+    checkpoint_path = (
+        Path(config.model_directory) / "checkpoints" / wandb.run.name
+    )
     checkpoint_path.mkdir(parents=True, exist_ok=True)
 
     optimizer = _get_optimizer(config, model)
@@ -117,8 +125,12 @@ def train(
             end_lr=config.end_learning_rate,
             num_iter=config.learning_rate_finder_steps,
         )
-    train_metrics = setup_metrics(len(config.class_names), stage="train").to(device)
-    val_metrics = setup_metrics(len(config.class_names), stage="validation").to(device)
+    train_metrics = setup_metrics(len(config.class_names), stage="train").to(
+        device
+    )
+    val_metrics = setup_metrics(len(config.class_names), stage="validation").to(
+        device
+    )
 
     example_ct = 0
     model_best, model_latest = None, None
@@ -157,13 +169,16 @@ def train(
                     wandb.log(
                         {
                             "train/loss": loss.mean().item(),
-                            "train/lr": learning_rate_scheduler.get_last_lr()[0],  # type: ignore
+                            "train/lr": learning_rate_scheduler.get_last_lr()[
+                                0
+                            ],  # type: ignore
                         },
                         step=step,
                     )
                 else:
                     metrics = {
-                        "train/throughput": example_ct / (time.time() - start_time),
+                        "train/throughput": example_ct
+                        / (time.time() - start_time),
                         "train/lr": scheduler.get_last_lr()[0],
                     }
                     metrics.update(
@@ -178,46 +193,49 @@ def train(
                 return
         train_metrics.reset()
 
-        val_metrics_vals = _evaluate(
-            model=model,
-            comments_text=comments_text,
-            class_names=config.class_names,
-            metrics=val_metrics,
-            loader=val_loader,
-            log_examples=False,
-            stage="validation",
-            prefix="validation",
-            loss_fn=loss_fn,
-            device=device,
-        )
-        wandb.log(val_metrics_vals, step=example_ct)
+        if config.validation_enabled > 0.0:
+            val_metrics_vals = _evaluate(
+                model=model,
+                comments_text=comments_text,
+                class_names=config.class_names,
+                metrics=val_metrics,
+                loader=val_loader,
+                log_examples=False,
+                stage="validation",
+                prefix="validation",
+                loss_fn=loss_fn,
+                device=device,
+            )
+            wandb.log(val_metrics_vals, step=example_ct)
+            if val_metrics_vals["validation/loss"] < best_val_loss:
+                best_val_loss = val_metrics_vals["validation/loss"]
+                model_best = {
+                    "epoch": epoch,
+                    "model": model.state_dict(),
+                    "optimizer": optimizer.state_dict(),
+                }
+            if (
+                config.early_stopping_enabled
+                and (epoch + 1) >= config.early_stopping_epoch
+                and val_metrics_vals[config.early_stopping_metric]
+                < config.early_stopping_threshold
+            ):
+                break
 
         model_latest = {
             "epoch": epoch,
             "model": model.state_dict(),
             "optimizer": optimizer.state_dict(),
         }
-        if val_metrics_vals["validation/loss"] < best_val_loss:
-            best_val_loss = val_metrics_vals["validation/loss"]
-            model_best = {
-                "epoch": epoch,
-                "model": model.state_dict(),
-                "optimizer": optimizer.state_dict(),
-            }
 
-        if config.create_checkpoints and (epoch + 1) % config.checkpoint_period == 0:
+        if (
+            config.create_checkpoints
+            and (epoch + 1) % config.checkpoint_period == 0
+        ):
             torch.save(
                 model_latest,
                 checkpoint_path / f"{config.model}_epoch={epoch}.ckpt",
             )
-
-        if (
-            config.early_stopping_enabled
-            and (epoch + 1) >= config.early_stopping_epoch
-            and val_metrics_vals[config.early_stopping_metric]
-            < config.early_stopping_threshold
-        ):
-            break
 
     torch.save(model_latest, checkpoint_path / f"{config.model}_latest.ckpt")
     torch.save(model_best, checkpoint_path / f"{config.model}_best.ckpt")
@@ -306,7 +324,9 @@ def _evaluate(
                 labels_batched.append(labels.cpu())
 
         if log_examples:
-            comments = [comment for batch in comments_batched for comment in batch]
+            comments = [
+                comment for batch in comments_batched for comment in batch
+            ]
             logits = torch.cat(logits_batched, dim=0)
             labels = torch.cat(labels_batched, dim=0)
             losses = loss_fn(logits, labels)
