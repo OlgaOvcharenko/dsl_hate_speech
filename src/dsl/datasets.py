@@ -205,6 +205,8 @@ def setup_datasets(config: wandb.Config, stage: str):
             _setup_test_dataset(data_path, config)
             for data_path in config.evaluation_data
         ]
+    elif stage == "inference":
+        return _setup_test_dataset(config.inference_data, config)
 
 
 def _take_dataset_portion(comments, labels, config):
@@ -239,12 +241,12 @@ def _setup_test_dataset(data_path: str, config: wandb.Config):
     )
 
 
-def setup_loader(data: Dataset, batch_size: int, shuffle: bool):
+def setup_loader(data: Dataset, batch_size: int, shuffle: bool, num_workers=4):
     return DataLoader(
         data,
         batch_size=batch_size,
         shuffle=shuffle,
-        num_workers=4,
+        num_workers=num_workers,
         pin_memory=True,
     )
 
