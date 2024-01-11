@@ -208,52 +208,52 @@ with torch.autocast("cuda"):
     model.save_pretrained("outputs_targets_new/")
 
 
-# Inference
-device = torch.device('cuda')
+# # Inference
+# device = torch.device('cuda')
 
-df_eval = setup_datasets_targets_only(config_local, file=config_local.evaluation_data)
+# df_eval = setup_datasets_targets_only(config_local, file=config_local.evaluation_data)
 
-results, targets_cat = [], []
+# results, targets_cat = [], []
 
-for row in df_eval.iter_rows(named=True):
-    text = row["comment_preprocessed_legacy"]
-    target_categories = ["gender", "age", "sexuality", "religion", "nationality", "disability", "social_status", "political_views", "appearance", "other"]
-    curr_targets = ""
-    for val in target_categories:
-        if row[val] == 1:
-            val_fix = val.replace("_", " ")
-            curr_targets = curr_targets + val_fix + ", "
+# for row in df_eval.iter_rows(named=True):
+#     text = row["comment_preprocessed_legacy"]
+#     target_categories = ["gender", "age", "sexuality", "religion", "nationality", "disability", "social_status", "political_views", "appearance", "other"]
+#     curr_targets = ""
+#     for val in target_categories:
+#         if row[val] == 1:
+#             val_fix = val.replace("_", " ")
+#             curr_targets = curr_targets + val_fix + ", "
     
-    if len(curr_targets) > 2:
-        curr_targets = curr_targets[:-2]
+#     if len(curr_targets) > 2:
+#         curr_targets = curr_targets[:-2]
     
-    targets_cat.append(curr_targets)
+#     targets_cat.append(curr_targets)
 
-    prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
-    Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
-    \nINPUT: What is 1 or more targets of this comment "{}"? 
-    Think step by step but use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, and other.'''.format(
-        text
-    )
+#     prompt = '''INSTRUCTION: Hate speech is any kind of offensive or denigrating speech against humans based on their identity. 
+#     Hate speech can be targeted towards gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, or other characteristic.
+#     \nINPUT: What is 1 or more targets of this comment "{}"? 
+#     Think step by step but use only the following targets: gender, age, sexuality, religion, nationality, disability, social status, political views, appearance, and other.'''.format(
+#         text
+#     )
 
-    print("Generate prompt")
-    batch = tokenizer(prompt, return_tensors='pt')
-    print("Tokenized", batch)
+#     print("Generate prompt")
+#     batch = tokenizer(prompt, return_tensors='pt')
+#     print("Tokenized", batch)
 
-    with torch.cuda.amp.autocast():
-        batch = batch.to(device)
-        output_tokens = model.generate(**batch, max_new_tokens=50)
+#     with torch.cuda.amp.autocast():
+#         batch = batch.to(device)
+#         output_tokens = model.generate(**batch, max_new_tokens=50)
 
-        print("Output tokens", output_tokens)
+#         print("Output tokens", output_tokens)
 
-        res = tokenizer.decode(output_tokens[0], skip_special_tokens=True)
+#         res = tokenizer.decode(output_tokens[0], skip_special_tokens=True)
 
-        print('Decoded', res)
+#         print('Decoded', res)
 
-        results.append(res)
+#         results.append(res)
 
-df_res = pd.DataFrame(results)
-df_res["cat"] = targets_cat
+# df_res = pd.DataFrame(results)
+# df_res["cat"] = targets_cat
 
-df_res.to_csv("outputs_targets_new/results_main_eval.csv", sep=",", index=False)
+# df_res.to_csv("outputs_targets_new/results_main_eval.csv", sep=",", index=False)
 
