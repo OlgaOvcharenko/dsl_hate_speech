@@ -10,6 +10,7 @@ import bitsandbytes as bnb
 from peft import LoraConfig, get_peft_model 
 from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM, BitsAndBytesConfig
 import transformers
+import datasets
 from datasets import load_dataset
 import jsonlines
 import wandb
