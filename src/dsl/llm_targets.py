@@ -205,7 +205,11 @@ print("n_gpus: ", training_args.n_gpu)
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
 with torch.autocast("cuda"):
     trainer.train(resume_from_checkpoint=False)
-    model.save_pretrained("outputs_targets_new/")
+    model.save_pretrained("outputs_targets_new/model/")
+    tokenizer.save_pretrained("outputs_targets_new/tokenizer/")
+
+    model.push_to_hub("PubPol/llama7b-7ep-model-oe")
+    tokenizer.push_to_hub("PubPol/llama7b-7ep-tokenizer-oe")
 
 
 # # Inference

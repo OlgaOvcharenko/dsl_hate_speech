@@ -16,6 +16,8 @@ mkdir -p outputs
 mkdir -p outputs_targets
 mkdir -p data/llm_target
 mkdir -p outputs_targets_new
+mkdir -p outputs_targets_new/tokenizer
+mkdir -p outputs_targets_new/model
 mkdir -p outputs_targets_mistral
 mkdir -p data/llm_target_predict
 
